@@ -1,10 +1,12 @@
-# KDRI 경영정보현황시스템(MIS Dashboard) 설계명세서 v1.0
+# KDRI 경영정보현황시스템(MIS Dashboard) 설계명세서 v1.1
 
 > **문서번호:** KDRI-MIS-2026-001
 > **작성일:** 2026-04-16
 > **작성자:** 피플지원실
 > **대상:** 클로드 코드(Claude Code) 구현용 설계 사양서
-> **버전:** v1.0
+> **버전:** v1.1
+> **개정일:** 2026-04-16
+> **개정 사유:** 보안 패키지 교체(csurf→csrf-csrf), SSE/Nginx 호환 설정 보완, 네트워크 정책 명확화, Rate Limiting 조정, 토큰 사용 정책 확정, UPSERT 감사 추적 추가, SSE 재연결 동기화 전략 추가, 기타 UI/UX 보완
 
 ---
 
@@ -52,7 +54,8 @@
 
 - **문정연구소** 내부망 PC/모바일 브라우저
 - **가산연구소** 내부망 PC/모바일 브라우저
-- 외부 인터넷 접근 차단 (로컬 네트워크 전용)
+- **클라이언트 접근 제한:** 외부 인터넷에서의 대시보드 접근 차단 (내부 네트워크 전용)
+- **서버 외부 통신:** MIS 서버는 Google Sheets API 호출을 위해 `*.googleapis.com` (TCP 443)으로의 아웃바운드 HTTPS 통신 필요. 방화벽에서 해당 도메인/IP 대역만 허용 (화이트리스트 방식 권장)
 
 ---
 
@@ -73,12 +76,14 @@
 │                                                 │ │SQLite│ │ │
 │                                                 │ └─────┘ │ │
 │                                                 └────┬────┘ │
-│                                                      │      │
-│                                              ┌───────▼────┐ │
-│                                              │Google Sheets│ │
-│                                              │   API       │ │
-│                                              └────────────┘ │
-└─────────────────────────────────────────────────────────────┘
+└──────────────────────────────────────────────────────┼──────┘
+                                                       │ HTTPS (443)
+                                                       │ 아웃바운드만 허용
+                                               ┌──────▼─────┐
+                                               │Google Sheets│
+                                               │   API       │
+                                               │ (외부 클라우드)│
+                                               └─────────────┘
 ```
 
 ### 2.2 구성 요소
@@ -89,7 +94,7 @@
 | **Node.js + Express** | API 서버, SSE(Server-Sent Events) 푸시, 세션 관리 | 포트 3000 (내부) |
 | **React (Vite)** | SPA 프론트엔드, 대시보드 UI | 빌드 후 Nginx에서 서빙 |
 | **SQLite** | 시험건수 입력 데이터 저장, 세션/로그 관리 | 파일 기반 DB |
-| **Google Sheets API** | Q1/Q2/Q4 매출·시험대상자 데이터 조회 | 서비스 계정 인증 |
+| **Google Sheets API** | Q1/Q2/Q4 매출·시험대상자 데이터 조회 | 서비스 계정 인증, 서버→외부 아웃바운드 HTTPS 필요 |
 
 ### 2.3 데이터 흐름
 
@@ -174,19 +179,51 @@ server {
     add_header X-Content-Type-Options nosniff;
     add_header X-XSS-Protection "1; mode=block";
     add_header Strict-Transport-Security "max-age=31536000" always;
-    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline';";
+    # CSP: Recharts가 SVG에 인라인 스타일을 사용하므로 style-src에 'unsafe-inline' 필수
+    add_header Content-Security-Policy "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; font-src 'self';";
 
-    # Rate Limiting
-    limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+    # Rate Limiting (대시보드 초기 로드 시 6~8개 API 동시 호출 고려)
+    limit_req_zone $binary_remote_addr zone=api:10m rate=60r/m;
+    limit_req_zone $binary_remote_addr zone=login:10m rate=5r/m;
 
-    location /api/ {
-        limit_req zone=api burst=10 nodelay;
+    # 로그인 엔드포인트 (브루트포스 방지, 강화된 rate limiting)
+    location /api/auth/login {
+        limit_req zone=login burst=3 nodelay;
         proxy_pass http://127.0.0.1:3000;
         proxy_http_version 1.1;
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
         proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # 일반 API
+    location /api/ {
+        limit_req zone=api burst=20 nodelay;
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+    }
+
+    # SSE (Server-Sent Events) 전용 프록시 설정
+    location /api/events {
+        proxy_pass http://127.0.0.1:3000;
+        proxy_http_version 1.1;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header Connection '';           # Connection 헤더 제거 (keep-alive 유지)
+
+        proxy_buffering off;                      # 버퍼링 비활성화 (SSE 필수)
+        proxy_cache off;                          # 캐시 비활성화
+        proxy_read_timeout 86400s;                # 24시간 (장시간 연결 유지)
+        chunked_transfer_encoding off;            # SSE는 chunked 불요
+
+        # Rate limiting 제외 (SSE는 단일 장시간 연결)
     }
 
     location / {
@@ -203,7 +240,7 @@ server {
 | 로그인 | 사번 + 비밀번호 (bcrypt 해싱, salt rounds: 12) |
 | 세션 | express-session, httpOnly + secure + sameSite: strict |
 | 세션 유효기간 | 8시간 (업무 시간 기준), idle 30분 자동 로그아웃 |
-| CSRF 방어 | csurf 미들웨어 또는 커스텀 토큰 |
+| CSRF 방어 | csrf-csrf 패키지 (Double Submit Cookie 패턴). ~~csurf는 2022년 보안 취약점으로 deprecated.~~ 서버가 CSRF 토큰을 `__csrf` 쿠키로 발급, 클라이언트는 `X-CSRF-Token` 헤더에 포함하여 요청. 쿠키-헤더 값 일치 검증. 입력폼 토큰 기반 엔드포인트는 CSRF 검증 제외. |
 | 권한 구분 | admin(경영진), manager(팀장), staff(담당자) |
 | 입력폼 접근 | 별도 토큰 기반 URL (로그인 불요, 토큰 유효기간 24시간) |
 
@@ -216,6 +253,39 @@ server {
 | 로깅 | 접근 로그(IP, 사번, 시간, 액션) SQLite 별도 테이블 저장 |
 | 백업 | SQLite DB 일일 자동 백업 (cron, 7일 보관) |
 | Google 서비스 계정 키 | `credentials.json` 파일 권한 600, `.gitignore` 등록 |
+
+#### .gitignore 필수 항목
+
+```gitignore
+# 환경 변수 및 시크릿
+.env
+credentials.json
+*.pem
+*.key
+*.crt
+
+# 데이터
+data/
+*.db
+*.db-journal
+*.db-wal
+
+# 빌드 산출물
+client/dist/
+node_modules/
+
+# 로그
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+```
 
 ---
 
@@ -244,6 +314,8 @@ server {
 | A | year | number | 사업연도 | 2026 |
 | B | total_target | number | 전사 연간 목표매출액 | 10000000000 |
 | C | total_actual | number | 전사 연간 누적매출액 | 3200000000 |
+
+> **참고:** `전사목표` 시트는 연간 단위 전사 목표만 관리한다. Q1 사분면의 "전사 목표 vs 누적"은 연간 기준으로 표시된다. 향후 분기별 전사 목표가 필요할 경우, `quarter` 컬럼(ANNUAL/Q1/Q2/Q3/Q4)을 추가하여 확장 가능하다.
 
 ### 5.2 SQLite 스키마 (Q3 시험건수 + 시스템 관리)
 
@@ -276,6 +348,22 @@ CREATE TABLE daily_test_counts (
     UNIQUE(date, department, lab, test_type)  -- 동일일/부서/연구소/유형 중복 방지
 );
 
+-- 시험건수 변경 이력 (감사 추적)
+CREATE TABLE test_count_audit_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    test_count_id INTEGER NOT NULL,           -- daily_test_counts.id
+    date DATE NOT NULL,
+    department TEXT NOT NULL,
+    lab TEXT NOT NULL,
+    test_type TEXT NOT NULL,
+    old_count INTEGER,                        -- 변경 전 건수 (신규 입력 시 NULL)
+    new_count INTEGER NOT NULL,               -- 변경 후 건수
+    action TEXT NOT NULL,                     -- INSERT / UPDATE / DELETE
+    changed_by TEXT NOT NULL,                 -- 변경자 사번
+    changed_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT
+);
+
 -- 시험대상자 인원수 (Q4) - 1차 더미, 2차 Google Sheets 연동
 CREATE TABLE daily_subject_counts (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -288,7 +376,7 @@ CREATE TABLE daily_subject_counts (
     UNIQUE(date, lab, department, study_name)
 );
 
--- 입력폼 토큰 (Q3 외부 입력용)
+-- 입력폼 토큰 (Q3 외부 입력용, 유효기간 내 다회 사용 허용)
 CREATE TABLE form_tokens (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     token TEXT UNIQUE NOT NULL,
@@ -296,7 +384,8 @@ CREATE TABLE form_tokens (
     lab TEXT NOT NULL,
     created_by TEXT NOT NULL,                 -- 발급자 사번
     expires_at DATETIME NOT NULL,
-    is_used INTEGER NOT NULL DEFAULT 0,
+    use_count INTEGER NOT NULL DEFAULT 0,     -- 사용 횟수 (추적용)
+    max_uses INTEGER NOT NULL DEFAULT 0,      -- 최대 사용 횟수 (0 = 무제한, 유효기간 내)
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -410,6 +499,10 @@ CREATE INDEX idx_sessions_expired ON sessions(expired);
 | 입력 버튼 | "[+ 시험건수 입력]" 버튼 → 입력폼 모달/새 탭 |
 | 필터 | 시험유형별 필터 (전체/유형별) |
 | 차트 토글 | 테이블 ↔ 라인 차트 전환 |
+| 스크롤 | 테이블 본문 영역 max-height 적용, 세로 스크롤 (overflow-y: auto) |
+| 합계행 고정 | 월누적 합계 행은 테이블 하단에 sticky 고정 (position: sticky; bottom: 0) |
+| 헤더 고정 | 날짜/부서 헤더는 상단 sticky 고정 (position: sticky; top: 0) |
+| 오늘 행 강조 | 현재 날짜 행에 배경색 하이라이트 (#eff6ff) |
 
 ### 6.6 Q4 사분면: 시험대상자 인원수
 
@@ -490,7 +583,7 @@ URL: https://mis.kdri.local/form/{token}
 #### 미들웨어 체인
 
 ```
-요청 → cors → helmet → session → csrf → auth → rateLimiter → 라우터
+요청 → cors → helmet → session → csrfProtection(csrf-csrf) → auth → rateLimiter → 라우터
 ```
 
 ### 7.3 M02: Google Sheets 커넥터
@@ -550,6 +643,21 @@ module.exports = {
 |------|----------|------|
 | 도넛 | Recharts PieChart | innerRadius=60%, outerRadius=80%, 중앙 텍스트: 달성률 |
 | 스택바 | Recharts BarChart | layout="vertical", stacked, 부서별 컬러 |
+
+#### 통화 표시 규칙 (client/src/utils/formatCurrency.js)
+
+| 금액 범위 | 표시 형식 | 예시 |
+|-----------|----------|------|
+| 1억 이상 | `X.X억` (소수점 1자리, 0이면 생략) | 3억 2천만 → `3.2억`, 10억 → `10억` |
+| 1천만 ~ 1억 미만 | `X,XXX만` (만 원 단위, 천 단위 콤마) | 5천만 → `5,000만` |
+| 1천만 미만 | `X,XXX,XXX원` (원 단위, 천 단위 콤마) | 800만 → `8,000,000원` |
+| 0원 | `0원` | |
+
+- 차트 Y축 라벨: 항상 `억` 단위 (0, 5, 10, 15 등)
+- 차트 툴팁: `X.XX억` (소수점 2자리)로 정밀 표시
+- 테이블 셀: 원 단위까지 표시 (`1,234,567,890원`)
+
+> **참고:** 모든 내부 데이터는 원(KRW) 단위 정수로 저장·전송하며, 표시 단위 변환은 프론트엔드에서만 수행한다.
 
 ### 7.5 M04: Q2 부서별 분기매출
 
@@ -636,26 +744,68 @@ module.exports = {
 ```javascript
 // hooks/useSSE.js
 const useSSE = (url) => {
-  useEffect(() => {
+  const reconnectAttempts = useRef(0);
+  const MAX_RECONNECT = 10;
+
+  // 재연결 성공 시 전체 데이터 재조회 (놓친 이벤트 보상)
+  const refreshAllData = async () => {
+    try {
+      const [sales, quarterly, testCounts, subjects] = await Promise.all([
+        api.get('/api/sales/overview'),
+        api.get(`/api/sales/quarterly?q=${currentQuarter}&year=${currentYear}`),
+        api.get(`/api/test-counts?month=${currentMonth}&year=${currentYear}`),
+        api.get('/api/subjects/summary'),
+      ]);
+      store.setSalesData(sales.data);
+      store.setQuarterlyData(quarterly.data);
+      store.setTestCountData(testCounts.data);
+      store.setSubjectData(subjects.data);
+    } catch (err) {
+      console.error('[SSE] 데이터 재조회 실패:', err.message);
+    }
+  };
+
+  const connect = () => {
     const eventSource = new EventSource(url, { withCredentials: true });
 
     eventSource.addEventListener('sales-update', (e) => {
-      const data = JSON.parse(e.data);
-      store.setSalesData(data);
+      store.setSalesData(JSON.parse(e.data));
     });
 
     eventSource.addEventListener('test-count-update', (e) => {
-      const data = JSON.parse(e.data);
-      store.setTestCountData(data);
+      store.setTestCountData(JSON.parse(e.data));
     });
 
-    // 재연결 로직 (5초 대기 후)
-    eventSource.onerror = () => {
-      eventSource.close();
-      setTimeout(() => reconnect(), 5000);
+    eventSource.addEventListener('subject-update', (e) => {
+      store.setSubjectData(JSON.parse(e.data));
+    });
+
+    // 재연결 성공 시 (첫 연결이 아닌 경우) 전체 데이터 재조회
+    eventSource.onopen = () => {
+      if (reconnectAttempts.current > 0) {
+        refreshAllData();
+      }
+      reconnectAttempts.current = 0;
+      store.setConnectionStatus('connected');
     };
 
-    return () => eventSource.close();
+    // 재연결 로직 (exponential backoff: 1초→2초→4초...최대 30초, 최대 10회)
+    eventSource.onerror = () => {
+      eventSource.close();
+      store.setConnectionStatus('disconnected');
+      if (reconnectAttempts.current < MAX_RECONNECT) {
+        const delay = Math.min(1000 * Math.pow(2, reconnectAttempts.current), 30000);
+        reconnectAttempts.current += 1;
+        setTimeout(() => connect(), delay);
+      }
+    };
+
+    return eventSource;
+  };
+
+  useEffect(() => {
+    const es = connect();
+    return () => es.close();
   }, []);
 };
 ```
@@ -664,9 +814,9 @@ const useSSE = (url) => {
 
 | 기능 | 설명 |
 |------|------|
-| 생성 | UUID v4, 유효기간 24시간, 부서/연구소 바인딩 |
-| 검증 | 토큰 존재 + 만료 전 + 미사용 |
-| 사용 | 제출 시 `is_used = 1` (재사용 불가) 또는 다회용 설정 가능 |
+| 생성 | UUID v4, 유효기간 24시간, 부서/연구소 바인딩, max_uses 설정 (기본 0=무제한) |
+| 검증 | 토큰 존재 + 만료 전 + (max_uses == 0 이거나 use_count < max_uses) |
+| 사용 | 제출 시 `use_count += 1` 증가. 유효기간 내 다회 제출 허용 (기본). 관리자가 max_uses를 설정하여 횟수 제한 가능. |
 | 정리 | 매일 자정 만료 토큰 삭제 (cron) |
 
 ### 7.10 M09: 로깅·감사
@@ -887,7 +1037,8 @@ kdri-mis-dashboard/
 │   │   ├── pages/
 │   │   │   ├── LoginPage.jsx
 │   │   │   ├── DashboardPage.jsx
-│   │   │   └── FormPage.jsx              # 토큰 기반 입력폼
+│   │   │   ├── FormPage.jsx              # 토큰 기반 입력폼
+│   │   │   └── AdminPage.jsx             # 관리자 페이지 (2차 구현)
 │   │   ├── utils/
 │   │   │   ├── formatCurrency.js
 │   │   │   └── api.js
@@ -905,7 +1056,7 @@ kdri-mis-dashboard/
 │   │   ├── auth.js
 │   │   ├── rateLimiter.js
 │   │   ├── logger.js
-│   │   └── csrf.js
+│   │   └── csrfProtection.js          # csrf-csrf (Double Submit Cookie)
 │   ├── routes/
 │   │   ├── auth.js
 │   │   ├── sales.js
@@ -1059,6 +1210,7 @@ echo "[$(date)] 백업 완료: mis_${DATE}.db"
 | Q4 Google Sheets 연동 | 배포 후 1~2주 | 더미 데이터 → 시트 연동 전환 |
 | 데이터 내보내기 | 배포 후 2주 | 엑셀 다운로드 기능 |
 | 알림 기능 | 배포 후 3주 | 달성률 기준 Slack 알림 |
+| 관리자 UI 페이지 | 배포 후 1~2주 | 사용자 CRUD, 접근 로그 조회, 토큰 관리 화면. 1차 출시 시에는 seed 스크립트 및 API 직접 호출로 대체 |
 | 대시보드 확장 | 배포 후 1개월 | 추가 KPI 위젯 |
 
 ---
@@ -1083,7 +1235,7 @@ KDRI 경영정보현황시스템(MIS Dashboard)을 구축합니다.
 
 [1단계: 프로젝트 초기화]
 1. 위 디렉토리 구조대로 프로젝트 생성
-2. server/package.json 의존성: express, better-sqlite3, express-session, connect-sqlite3, bcryptjs, cors, helmet, uuid, dotenv, googleapis
+2. server/package.json 의존성: express, better-sqlite3, express-session, connect-sqlite3, bcryptjs, cors, helmet, csrf-csrf, uuid, dotenv, googleapis
 3. client/package.json 의존성: react, react-dom, react-router-dom, recharts, zustand, axios, tailwindcss, @tailwindcss/forms, lucide-react
 
 [2단계: SQLite DB 초기화]
@@ -1091,7 +1243,8 @@ seeds/init-db.js에 아래 테이블 생성:
 - users (id, employee_id UNIQUE, name, department, lab, role, password_hash, is_active, created_at, updated_at)
 - daily_test_counts (id, date, department, lab, test_type, count, submitted_by, submitted_at, notes, UNIQUE(date,department,lab,test_type))
 - daily_subject_counts (id, date, lab, department, subject_count, study_name, created_at, UNIQUE(date,lab,department,study_name))
-- form_tokens (id, token UNIQUE, department, lab, created_by, expires_at, is_used, created_at)
+- form_tokens (id, token UNIQUE, department, lab, created_by, expires_at, use_count DEFAULT 0, max_uses DEFAULT 0, created_at)
+- test_count_audit_log (id, test_count_id, date, department, lab, test_type, old_count, new_count, action, changed_by, changed_at, notes)
 - access_logs (id, employee_id, ip_address, action, detail, created_at)
 - sessions (sid PRIMARY KEY, sess, expired + INDEX)
 
@@ -1101,7 +1254,7 @@ seeds/seed-users.js: admin 계정 1개 생성 (사번: admin, 비밀번호: admi
 - POST /api/auth/login: 사번+비밀번호 → bcrypt 검증 → 세션 생성
 - POST /api/auth/logout: 세션 파기
 - GET /api/auth/me: 현재 로그인 사용자 정보
-- 미들웨어: auth.js (세션 검증), rateLimiter.js (API 30req/min)
+- 미들웨어: auth.js (세션 검증), csrfProtection.js (csrf-csrf, Double Submit Cookie), rateLimiter.js (Nginx에서 일반 API 60req/min, 로그인 5req/min, SSE 제외)
 - helmet, cors(origin: 'https://mis.kdri.local'), express-session(httpOnly, secure, sameSite:strict, maxAge:8시간)
 - 모든 인증 이벤트 access_logs에 기록
 
@@ -1170,12 +1323,15 @@ KDRI MIS 프로젝트에 Q3 일일 시험건수 모듈을 추가합니다.
   - body: { date, department, lab, test_type, count, submitted_by, notes, token? }
   - 검증: date(오늘-7일~오늘), count(0~9999 정수), department(허용목록), lab(문정/가산)
   - 중복 시 UPSERT (같은 날짜/부서/연구소/유형이면 업데이트)
-- PUT /api/test-counts/:id: 수정 (manager 이상)
-- DELETE /api/test-counts/:id: 삭제 (admin)
+  - UPSERT 수행 전 기존 레코드가 있으면 test_count_audit_log에 변경 전 값 기록 (action: 'UPDATE')
+  - 신규 입력 시에도 audit_log 기록 (action: 'INSERT', old_count: NULL)
+- PUT /api/test-counts/:id: 수정 (manager 이상) - audit_log 기록 (action: 'UPDATE')
+- DELETE /api/test-counts/:id: 삭제 (admin) - audit_log 기록 (action: 'DELETE')
 
 [입력폼 토큰 API]
-- POST /api/form-tokens: 토큰 생성 (UUID v4, 유효 24시간, 부서/연구소 바인딩) - manager 이상
-  - 응답: { token, url: "https://mis.kdri.local/form/{token}", expires_at }
+- POST /api/form-tokens: 토큰 생성 (UUID v4, 유효 24시간, 부서/연구소 바인딩, max_uses 선택) - manager 이상
+  - body: { department, lab, max_uses? } (max_uses 생략 시 0=무제한, 유효기간 내 다회 사용)
+  - 응답: { token, url: "https://mis.kdri.local/form/{token}", expires_at, max_uses }
 - GET /api/form-tokens/:token/validate: 토큰 검증 (public) - 유효하면 부서/연구소 정보 반환
 - GET /api/form-tokens: 토큰 목록 (manager 이상)
 - DELETE /api/form-tokens/:id: 토큰 폐기 (manager 이상)
@@ -1242,12 +1398,18 @@ KDRI MIS 프로젝트에 Q4 시험대상자 모듈과 SSE 실시간 통신을 �
   - subject-update: Q4 데이터 변경 시
   - heartbeat: 15초마다 { type: "ping" }
 - broadcast 함수: 전체 연결된 클라이언트에 이벤트 전송
+- Nginx SSE 전용 설정 필수:
+  - location /api/events에 별도 블록 추가
+  - proxy_buffering off, proxy_cache off, proxy_read_timeout 86400s
+  - Connection 헤더 빈 문자열로 설정, chunked_transfer_encoding off
+  - rate limiting에서 제외
 
 [프론트엔드 SSE: client/src/hooks/useSSE.js]
 - EventSource로 /api/events 구독 (withCredentials: true)
 - 이벤트별 Zustand store 업데이트
-- 연결 끊김 시 5초 후 자동 재연결 (최대 10회)
-- 연결 상태 표시: 헤더에 초록/빨간 점
+- 연결 끊김 시 exponential backoff로 자동 재연결 (1초→2초→4초...최대 30초, 최대 10회)
+- 재연결 성공(onopen) 시 모든 사분면 데이터를 REST API로 전체 재조회하여 놓친 이벤트 보상
+- 연결 상태 표시: 헤더에 초록/빨간 점 (store.connectionStatus)
 
 [기존 API 폴링 → SSE 전환]
 - Q1/Q2의 30초 폴링을 SSE 이벤트 수신으로 변경
@@ -1316,13 +1478,16 @@ KDRI MIS 프로젝트의 보안 강화, 테스트, 배포 설정을 완료합니
 [보안 강화]
 1. Nginx 최종 설정:
    - allow 10.0.0.0/8; allow 172.16.0.0/12; allow 192.168.0.0/16; deny all;
-   - rate limiting: limit_req_zone $binary_remote_addr zone=api:10m rate=30r/m;
+   - rate limiting: 일반 API zone=api 60r/m, 로그인 zone=login 5r/m, SSE /api/events는 rate limiting 제외
+   - SSE 전용 location /api/events: proxy_buffering off, proxy_cache off, proxy_read_timeout 86400s, Connection '' 설정
    - SSL: TLSv1.2 TLSv1.3만 허용, HIGH ciphers
    - 모든 보안 헤더 적용 (X-Frame-Options, HSTS, CSP, X-Content-Type-Options)
+   - CSP에 img-src data:, connect-src 'self', font-src 'self' 추가 (Recharts SVG 호환)
 2. Express 보안:
    - helmet() 기본 설정
    - CORS origin 제한
    - 세션 쿠키: httpOnly, secure, sameSite: 'strict'
+   - CSRF: csrf-csrf 패키지의 doubleCsrf() 미들웨어 적용. csurf는 deprecated이므로 사용하지 않음.
    - API 입력값 전체 sanitize (xss 필터)
    - SQL injection 방지: prepared statements만 사용 (better-sqlite3 기본 지원)
 3. 파일 권한:
@@ -1405,5 +1570,6 @@ KDRI MIS 프로젝트의 보안 강화, 테스트, 배포 설정을 완료합니
 
 ---
 
-> **문서 끝** | KDRI 경영정보현황시스템 설계명세서 v1.0
+> **문서 끝** | KDRI 경영정보현황시스템 설계명세서 v1.1
 > 본 문서는 Claude Code 구현용으로 작성되었으며, 각 프롬프트를 순서대로 실행하여 시스템을 구축합니다.
+> v1.1 개정: csurf→csrf-csrf 교체, SSE Nginx 설정 보완, 네트워크 정책 명확화, Rate Limiting 조정, 토큰 다회사용 확정, UPSERT 감사 추적, SSE 재연결 동기화 외 기타 보완
