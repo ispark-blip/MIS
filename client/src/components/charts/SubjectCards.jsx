@@ -8,7 +8,7 @@ const LAB_COLORS = { '문정': '#14b8a6', '가산': '#6366f1' };
 export default function SubjectCards({ data }) {
   const [expanded, setExpanded] = useState(null);
 
-  if (!data || data.length === 0) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  if (!Array.isArray(data) || data.length === 0) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
 
   return (
     <div className="h-full overflow-auto flex flex-col gap-3">

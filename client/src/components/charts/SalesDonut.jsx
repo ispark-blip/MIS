@@ -9,9 +9,11 @@ function getAchievementColor(rate) {
 }
 
 export default function SalesDonut({ data }) {
-  if (!data) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  if (!data || !Array.isArray(data.departments)) {
+    return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  }
 
-  const { totalTarget, totalActual, achievementRate, departments } = data;
+  const { totalTarget = 0, totalActual = 0, achievementRate = 0, departments } = data;
   const pieData = [
     { name: '달성', value: totalActual },
     { name: '잔여', value: Math.max(totalTarget - totalActual, 0) },

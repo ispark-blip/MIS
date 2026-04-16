@@ -7,9 +7,10 @@ export default function TestCountTable({ data }) {
   const [viewMode, setViewMode] = useState('table');
 
   // 날짜/부서별 피벗
+  const rows = Array.isArray(data) ? data : [];
   const deptSet = new Set();
   const dateMap = {};
-  (data || []).forEach((r) => {
+  rows.forEach((r) => {
     deptSet.add(r.department);
     if (!dateMap[r.date]) dateMap[r.date] = {};
     dateMap[r.date][r.department] = (dateMap[r.date][r.department] || 0) + r.count;
@@ -42,9 +43,9 @@ export default function TestCountTable({ data }) {
 
       {/* 본문 */}
       <div className="flex-1 min-h-0 overflow-auto">
-        {data?.length === 0 && <div className="text-center text-gray-400 text-sm py-8">입력된 시험건수가 없습니다</div>}
+        {rows.length === 0 && <div className="text-center text-gray-400 text-sm py-8">입력된 시험건수가 없습니다</div>}
 
-        {viewMode === 'table' && data?.length > 0 && (
+        {viewMode === 'table' && rows.length > 0 && (
           <table className="w-full text-xs border-collapse">
             <thead className="sticky top-0 z-10 bg-white">
               <tr className="border-b">
@@ -69,7 +70,7 @@ export default function TestCountTable({ data }) {
           </table>
         )}
 
-        {viewMode === 'chart' && data?.length > 0 && (
+        {viewMode === 'chart' && rows.length > 0 && (
           <ResponsiveContainer width="100%" height="100%">
             <LineChart data={chartData} margin={{ top: 5, right: 10, left: 0, bottom: 5 }}>
               <XAxis dataKey="date" tick={{ fontSize: 10 }} />

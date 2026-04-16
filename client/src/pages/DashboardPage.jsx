@@ -7,6 +7,7 @@ import SalesDonut from '../components/charts/SalesDonut';
 import QuarterlyBar from '../components/charts/QuarterlyBar';
 import TestCountTable from '../components/charts/TestCountTable';
 import SubjectCards from '../components/charts/SubjectCards';
+import ChartErrorBoundary from '../components/charts/ChartErrorBoundary';
 import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
 
 export default function DashboardPage() {
@@ -47,7 +48,9 @@ export default function DashboardPage() {
             <TrendingUp size={28} className="text-slate-600" />
             <span className="text-2xl font-bold text-slate-700">전사 목표 vs 누적매출</span>
           </div>
-          <div className="flex-1 p-3 min-h-0"><SalesDonut data={salesData} /></div>
+          <div className="flex-1 p-3 min-h-0">
+            <ChartErrorBoundary resetKey={salesData}><SalesDonut data={salesData} /></ChartErrorBoundary>
+          </div>
         </section>
 
         {/* Q2: 부서별 분기 매출 */}
@@ -56,7 +59,9 @@ export default function DashboardPage() {
             <BarChart3 size={28} className="text-slate-600" />
             <span className="text-2xl font-bold text-slate-700">부서별 분기 매출</span>
           </div>
-          <div className="flex-1 p-3 min-h-0"><QuarterlyBar data={quarterlyData} /></div>
+          <div className="flex-1 p-3 min-h-0">
+            <ChartErrorBoundary resetKey={quarterlyData}><QuarterlyBar data={quarterlyData} /></ChartErrorBoundary>
+          </div>
         </section>
 
         {/* Q3: 일일 시험건수 */}
@@ -65,7 +70,9 @@ export default function DashboardPage() {
             <ClipboardList size={28} className="text-slate-600" />
             <span className="text-2xl font-bold text-slate-700">일일 시험건수 ({selectedMonth}월)</span>
           </div>
-          <div className="flex-1 p-3 min-h-0"><TestCountTable data={testCountData} /></div>
+          <div className="flex-1 p-3 min-h-0">
+            <ChartErrorBoundary resetKey={testCountData}><TestCountTable data={testCountData} /></ChartErrorBoundary>
+          </div>
         </section>
 
         {/* Q4: 시험대상자 인원수 */}
@@ -74,7 +81,9 @@ export default function DashboardPage() {
             <Users size={28} className="text-slate-600" />
             <span className="text-2xl font-bold text-slate-700">시험대상자 인원수</span>
           </div>
-          <div className="flex-1 p-3 min-h-0"><SubjectCards data={subjectData} /></div>
+          <div className="flex-1 p-3 min-h-0">
+            <ChartErrorBoundary resetKey={subjectData}><SubjectCards data={subjectData} /></ChartErrorBoundary>
+          </div>
         </section>
       </div>
     </div>

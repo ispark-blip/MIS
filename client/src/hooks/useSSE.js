@@ -39,16 +39,16 @@ export function useSSE() {
         useDashboardStore.setState({ connectionStatus: 'connected' });
       });
 
-      eventSource.addEventListener('sales-update', (e) => {
-        useDashboardStore.setState({ salesData: JSON.parse(e.data) });
+      eventSource.addEventListener('sales-update', () => {
+        refreshAllData();
       });
 
       eventSource.addEventListener('test-count-update', () => {
         refreshAllData();
       });
 
-      eventSource.addEventListener('subject-update', (e) => {
-        useDashboardStore.setState({ subjectData: JSON.parse(e.data) });
+      eventSource.addEventListener('subjects-update', () => {
+        refreshAllData();
       });
 
       eventSource.onerror = () => {

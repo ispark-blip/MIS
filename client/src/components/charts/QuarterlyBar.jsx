@@ -7,9 +7,11 @@ export default function QuarterlyBar({ data }) {
   const { selectedQuarter, setSelectedQuarter } = useDashboardStore();
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
 
-  if (!data) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  if (!data || !Array.isArray(data.departments)) {
+    return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  }
 
-  const chartData = (data.departments || []).map((d) => ({
+  const chartData = data.departments.map((d) => ({
     name: d.name,
     목표: d.target,
     실적: d.actual,
