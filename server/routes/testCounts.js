@@ -13,6 +13,19 @@ router.get('/', requireAuth, (req, res) => {
   const m = parseInt(month) || (now.getMonth() + 1);
   const y = parseInt(year) || now.getFullYear();
 
+  // 1순위: Google Sheets 데이터 (연동된 경우)
+  const sheetsService = req.app.get('sheetsService');
+  const sheetRows = sheetsService ? sheetsService.getCachedTestCounts(m, y, lab, test_type) : null;
+
+  if (sheetRows && sheetRows.length > 0) {
+    return res.json({
+      success: true,
+      data: sheetRows,
+      meta: { timestamp: new Date().toISOString(), source: 'google-sheets' },
+    });
+  }
+
+  // 2순위: SQLite 데이터 (폼 입력 내역)
   const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
   const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
 
