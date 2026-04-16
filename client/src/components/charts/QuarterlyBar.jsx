@@ -1,6 +1,7 @@
 import { BarChart, Bar, XAxis, YAxis, Tooltip, Legend, ResponsiveContainer, Cell, LabelList } from 'recharts';
 import useDashboardStore from '../../stores/dashboardStore';
 import { formatCurrency, formatAxisLabel } from '../../utils/formatCurrency';
+import { getDeptColor } from '../../utils/deptColors';
 
 export default function QuarterlyBar({ data }) {
   const { selectedQuarter, setSelectedQuarter } = useDashboardStore();
@@ -49,11 +50,12 @@ export default function QuarterlyBar({ data }) {
                 style={{ fontSize: 14, fill: '#64748b', fontWeight: 600 }}
               />
             </Bar>
-            <Bar dataKey="실적" fill="#3b82f6" radius={[2, 2, 0, 0]}>
+            <Bar dataKey="실적" radius={[2, 2, 0, 0]}>
+              {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
               <LabelList
                 dataKey="actualLabel"
                 position="top"
-                style={{ fontSize: 15, fill: '#1e40af', fontWeight: 700 }}
+                style={{ fontSize: 15, fill: '#1e293b', fontWeight: 700 }}
               />
               <LabelList
                 dataKey="rate"

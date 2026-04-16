@@ -1,7 +1,6 @@
 import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList } from 'recharts';
 import { formatCurrency } from '../../utils/formatCurrency';
-
-const COLORS = ['#3b82f6', '#14b8a6', '#8b5cf6', '#f59e0b', '#ef4444', '#6366f1'];
+import { getDeptColor } from '../../utils/deptColors';
 
 function getAchievementColor(rate) {
   if (rate >= 80) return '#22c55e';
@@ -62,7 +61,7 @@ export default function SalesDonut({ data }) {
               <YAxis type="category" dataKey="name" width={65} tick={{ fontSize: 13 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {stackData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="right"

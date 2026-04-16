@@ -1,8 +1,7 @@
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
 import { BarChart3, Table2 } from 'lucide-react';
-
-const DEPT_COLORS = { '임상1팀': '#3b82f6', '임상2팀': '#14b8a6', '비임상팀': '#8b5cf6', '경영지원팀': '#f59e0b', '시험검사팀': '#ef4444', '특수시험팀': '#6366f1' };
+import { getDeptColor } from '../../utils/deptColors';
 
 export default function TestCountTable({ data }) {
   const [viewMode, setViewMode] = useState('table');
@@ -78,7 +77,7 @@ export default function TestCountTable({ data }) {
               <Tooltip />
               <Legend wrapperStyle={{ fontSize: 10 }} />
               {departments.map((d) => (
-                <Line key={d} type="monotone" dataKey={d} stroke={DEPT_COLORS[d] || '#999'} strokeWidth={1.5} dot={false} />
+                <Line key={d} type="monotone" dataKey={d} stroke={getDeptColor(d, departments.indexOf(d))} strokeWidth={1.5} dot={false} />
               ))}
             </LineChart>
           </ResponsiveContainer>
