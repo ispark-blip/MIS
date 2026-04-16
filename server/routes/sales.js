@@ -7,8 +7,9 @@ const router = express.Router();
 router.get('/overview', requireAuth, (req, res) => {
   const sheetsService = req.app.get('sheetsService');
   const lab = req.query.lab || '전체';
+  const year = parseInt(req.query.year) || new Date().getFullYear();
 
-  const data = sheetsService ? sheetsService.getCachedSalesOverview(lab) : null;
+  const data = sheetsService ? sheetsService.getCachedSalesOverview(lab, year) : null;
 
   if (!data) {
     return res.json({

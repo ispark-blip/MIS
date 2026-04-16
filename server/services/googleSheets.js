@@ -3,7 +3,7 @@ const sheetsConfig = require('../config/sheets');
 
 class GoogleSheetsService {
   constructor(eventEmitter) {
-    this.cache = { sales: null, total: null, testCounts: null, subjects: null };
+    this.cache = { sales: null, testCounts: null, subjects: null };
     this.eventEmitter = eventEmitter;
     this.sheets = null;
     this.initialized = false;
@@ -41,77 +41,97 @@ class GoogleSheetsService {
   async fetchSalesData() {
     if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_SALES) return null;
     try {
-      const [salesRes, totalRes] = await Promise.all([
-        this.sheets.spreadsheets.values.get({
-          spreadsheetId: sheetsConfig.SPREADSHEET_ID_SALES,
-          range: sheetsConfig.SHEET_RANGE_SALES,
-        }),
-        this.sheets.spreadsheets.values.get({
-          spreadsheetId: sheetsConfig.SPREADSHEET_ID_SALES,
-          range: sheetsConfig.SHEET_RANGE_TOTAL,
-        }),
-      ]);
-      return { sales: salesRes.data.values || [], total: totalRes.data.values || [] };
+      const salesRes = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_SALES,
+        range: sheetsConfig.SHEET_RANGE_SALES,
+      });
+      return { sales: salesRes.data.values || [] };
     } catch (err) {
       console.error('[Sheets] 매출 조회 실패:', err.message);
       return null;
     }
   }
 
+  // 시트 컬럼: 연도 | 월 | 부서명 | 연구소 | 월목표 | 월실적
   transformSalesData() {
-    const total = this.cache.total?.[0] || [];
-    const totalTarget = parseInt(total[1]) || 0;
-    const totalActual = parseInt(total[2]) || 0;
-
-    const departments = (this.cache.sales || []).map(row => ({
-      year: parseInt(row[0]),
-      quarter: row[1],
-      name: row[2],
-      lab: row[3],
-      target_quarterly: parseInt(row[4]) || 0,
-      actual_quarterly: parseInt(row[5]) || 0,
-      target_annual: parseInt(row[6]) || 0,
-      actual_annual: parseInt(row[7]) || 0,
-    }));
-
-    return { totalTarget, totalActual, departments };
+    return (this.cache.sales || [])
+      .filter(row => row && row[0] && row[1] && row[2] && row[3])
+      .map(row => ({
+        year: parseInt(row[0]),
+        month: parseInt(row[1]),
+        name: row[2],
+        lab: row[3],
+        target_monthly: parseInt(row[4]) || 0,
+        actual_monthly: parseInt(row[5]) || 0,
+      }))
+      .filter(r => !isNaN(r.year) && r.month >= 1 && r.month <= 12);
   }
 
-  getCachedSalesOverview(lab) {
+  getCachedSalesOverview(lab, year) {
     if (!this.cache.sales) return null;
-    const data = this.transformSalesData();
-    // 연간 데이터 중복 제거 (동일 부서가 여러 분기에 등장)
+    const targetYear = year || new Date().getFullYear();
+    const rows = this.transformSalesData().filter(r => r.year === targetYear);
+
+    // 부서별 연간 합계
     const deptMap = new Map();
-    for (const d of data.departments) {
-      if (!deptMap.has(d.name)) deptMap.set(d.name, d);
+    for (const r of rows) {
+      if (lab !== '전체' && r.lab !== lab) continue;
+      if (!deptMap.has(r.name)) {
+        deptMap.set(r.name, { name: r.name, lab: r.lab, target: 0, actual: 0 });
+      }
+      const d = deptMap.get(r.name);
+      d.target += r.target_monthly;
+      d.actual += r.actual_monthly;
     }
-    const unique = Array.from(deptMap.values());
-    const depts = lab === '전체' ? unique : unique.filter(d => d.lab === lab);
-    const totalActual = depts.reduce((s, d) => s + d.actual_annual, 0);
+
+    const departments = Array.from(deptMap.values());
+    const totalTarget = departments.reduce((s, d) => s + d.target, 0);
+    const totalActual = departments.reduce((s, d) => s + d.actual, 0);
 
     return {
-      totalTarget: data.totalTarget,
+      totalTarget,
       totalActual,
-      achievementRate: data.totalTarget > 0 ? Math.round((totalActual / data.totalTarget) * 1000) / 10 : 0,
-      departments: depts.map(d => ({
-        name: d.name, lab: d.lab, actual: d.actual_annual, target: d.target_annual,
-        ratio: totalActual > 0 ? Math.round((d.actual_annual / totalActual) * 1000) / 10 : 0,
-        achievementRate: d.target_annual > 0 ? Math.round((d.actual_annual / d.target_annual) * 1000) / 10 : 0,
+      achievementRate: totalTarget > 0 ? Math.round((totalActual / totalTarget) * 1000) / 10 : 0,
+      departments: departments.map(d => ({
+        name: d.name,
+        lab: d.lab,
+        actual: d.actual,
+        target: d.target,
+        ratio: totalActual > 0 ? Math.round((d.actual / totalActual) * 1000) / 10 : 0,
+        achievementRate: d.target > 0 ? Math.round((d.actual / d.target) * 1000) / 10 : 0,
       })),
     };
   }
 
   getCachedQuarterlySales(quarter, year, lab) {
     if (!this.cache.sales) return null;
-    const data = this.transformSalesData();
-    let depts = data.departments.filter(d => d.quarter === quarter && d.year === year);
-    if (lab !== '전체') depts = depts.filter(d => d.lab === lab);
+    const quarterMonths = { Q1: [1, 2, 3], Q2: [4, 5, 6], Q3: [7, 8, 9], Q4: [10, 11, 12] };
+    const months = quarterMonths[quarter] || [];
 
+    const rows = this.transformSalesData().filter(r => r.year === year && months.includes(r.month));
+
+    // 부서별 분기 합계
+    const deptMap = new Map();
+    for (const r of rows) {
+      if (lab !== '전체' && r.lab !== lab) continue;
+      if (!deptMap.has(r.name)) {
+        deptMap.set(r.name, { name: r.name, lab: r.lab, target: 0, actual: 0 });
+      }
+      const d = deptMap.get(r.name);
+      d.target += r.target_monthly;
+      d.actual += r.actual_monthly;
+    }
+
+    const departments = Array.from(deptMap.values());
     return {
-      quarter, year,
-      departments: depts.map(d => ({
-        name: d.name, lab: d.lab, target: d.target_quarterly, actual: d.actual_quarterly,
-        achievementRate: d.target_quarterly > 0 ? Math.round((d.actual_quarterly / d.target_quarterly) * 1000) / 10 : 0,
+      quarter,
+      year,
+      departments: departments.map(d => ({
+        name: d.name,
+        lab: d.lab,
+        target: d.target,
+        actual: d.actual,
+        achievementRate: d.target > 0 ? Math.round((d.actual / d.target) * 1000) / 10 : 0,
       })),
     };
   }
@@ -202,13 +222,12 @@ class GoogleSheetsService {
       let changed = false;
 
       if (salesData) {
-        const newHash = JSON.stringify(salesData);
-        const oldHash = JSON.stringify({ sales: this.cache.sales, total: this.cache.total });
+        const newHash = JSON.stringify(salesData.sales);
+        const oldHash = JSON.stringify(this.cache.sales);
         if (newHash !== oldHash) {
           this.cache.sales = salesData.sales;
-          this.cache.total = salesData.total;
           changed = true;
-          if (this.eventEmitter) this.eventEmitter('sales-update', this.transformSalesData());
+          if (this.eventEmitter) this.eventEmitter('sales-update', { source: 'sheets' });
         }
       }
 

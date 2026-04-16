@@ -1,10 +1,9 @@
 module.exports = {
   CREDENTIALS_PATH: process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json',
 
-  // 매출/전사목표
+  // 매출 (월 단위 입력 → 분기/연간 자동 집계)
   SPREADSHEET_ID_SALES: process.env.SHEET_ID_SALES,
-  SHEET_RANGE_SALES: process.env.SHEET_RANGE_SALES || '매출현황!A2:I',
-  SHEET_RANGE_TOTAL: process.env.SHEET_RANGE_TOTAL || '전사목표!A2:C',
+  SHEET_RANGE_SALES: process.env.SHEET_RANGE_SALES || '매출현황!A2:F',
 
   // 시험건수 (Q3)
   SPREADSHEET_ID_TESTCOUNTS: process.env.SHEET_ID_TESTCOUNTS,
