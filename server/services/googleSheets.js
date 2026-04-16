@@ -12,7 +12,7 @@ class GoogleSheetsService {
   async authenticate() {
     try {
       if (!fs.existsSync(sheetsConfig.CREDENTIALS_PATH)) {
-        console.log('[Sheets] credentials.json 없음. Google Sheets 연동 비활성화.');
+        console.log(`[Sheets] credentials.json 없음 (찾는 경로: ${sheetsConfig.CREDENTIALS_PATH}). Google Sheets 연동 비활성화.`);
         return false;
       }
       if (!sheetsConfig.SPREADSHEET_ID_SALES

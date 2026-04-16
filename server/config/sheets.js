@@ -1,5 +1,16 @@
+const path = require('path');
+
+// 프로젝트 루트 기준으로 credentials.json 찾기 (CWD 무관)
+const PROJECT_ROOT = path.join(__dirname, '..', '..');
+const defaultCredPath = path.join(PROJECT_ROOT, 'credentials.json');
+const credPath = process.env.GOOGLE_CREDENTIALS_PATH
+  ? (path.isAbsolute(process.env.GOOGLE_CREDENTIALS_PATH)
+      ? process.env.GOOGLE_CREDENTIALS_PATH
+      : path.join(PROJECT_ROOT, process.env.GOOGLE_CREDENTIALS_PATH))
+  : defaultCredPath;
+
 module.exports = {
-  CREDENTIALS_PATH: process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json',
+  CREDENTIALS_PATH: credPath,
 
   // 매출 (월 단위 입력 → 분기/연간 자동 집계)
   SPREADSHEET_ID_SALES: process.env.SHEET_ID_SALES,
