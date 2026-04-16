@@ -219,7 +219,7 @@ class GoogleSheetsService {
     });
   }
 
-  // 시험건수 summary (시험대상자 summary 와 동일 형식: 연구소별 today/월/연/최근30일/부서별)
+  // 시험건수 summary - 부서별 집계 (오늘/월/연/최근30일)
   getCachedTestCountsSummary() {
     if (!this.cache.testCounts) return null;
     const rows = this.transformTestCountsData();
@@ -233,21 +233,26 @@ class GoogleSheetsService {
     const yearStart = `${y}-01-01`;
     const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
 
-    const labs = ['문정', '가산'];
-    return labs.map((lab) => {
-      const labRows = rows.filter(r => r.lab === lab);
+    // 부서별 그룹화 (부서명+연구소 조합 키)
+    const deptMap = new Map();
+    for (const r of rows) {
+      const key = `${r.lab}|${r.department}`;
+      if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
+      deptMap.get(key).rows.push(r);
+    }
 
-      const todayCount = labRows.filter(r => r.date === today)
+    return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
+      const todayCount = deptRows.filter(r => r.date === today)
         .reduce((s, r) => s + r.count, 0);
 
-      const monthlyTotal = labRows.filter(r => r.date >= monthStart && r.date <= today)
+      const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
         .reduce((s, r) => s + r.count, 0);
 
-      const annualTotal = labRows.filter(r => r.date >= yearStart && r.date <= today)
+      const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
         .reduce((s, r) => s + r.count, 0);
 
       const dailyMap = new Map();
-      labRows
+      deptRows
         .filter(r => {
           const t = Date.parse(r.date);
           return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
@@ -257,13 +262,7 @@ class GoogleSheetsService {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      const deptMap = new Map();
-      labRows
-        .filter(r => r.date >= monthStart && r.date <= today)
-        .forEach(r => deptMap.set(r.department, (deptMap.get(r.department) || 0) + r.count));
-      const departments = Array.from(deptMap.entries()).map(([department, total]) => ({ department, total }));
-
-      return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
+      return { department, lab, today: todayCount, monthlyTotal, annualTotal, recentDays };
     });
   }
 
