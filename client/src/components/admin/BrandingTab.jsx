@@ -45,7 +45,7 @@ export default function BrandingTab({ settings, onSaved }) {
     fd.append('logo', file);
     setSaving(true); setMsg(null);
     try {
-      const r = await api.post('/settings/logo', fd, { headers: { 'Content-Type': 'multipart/form-data' } });
+      const r = await api.post('/settings/logo', fd);
       // 전체 설정 재조회
       const s = await api.get('/settings');
       onSaved(s.data.data);

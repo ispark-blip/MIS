@@ -23,7 +23,7 @@ app.set('sseManager', sseManager);
 // 미들웨어
 app.use(helmet({ contentSecurityPolicy: false }));
 app.use(cors({
-  origin: process.env.NODE_ENV === 'production' ? 'https://mis.kdri.local' : true,
+  origin: process.env.CORS_ORIGIN || true,
   credentials: true,
 }));
 app.use(express.json());
@@ -37,8 +37,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'strict',
+    secure: process.env.COOKIE_SECURE === 'true',
+    sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000, // 8시간
   },
 }));
