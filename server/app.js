@@ -45,7 +45,6 @@ app.use(session({
 app.use('/api/auth', require('./routes/auth'));
 app.use('/api/sales', require('./routes/sales'));
 app.use('/api/test-counts', require('./routes/testCounts'));
-app.use('/api/form-tokens', require('./routes/formTokens'));
 app.use('/api/subjects', require('./routes/subjects'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/admin', require('./routes/admin'));

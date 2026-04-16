@@ -1,16 +1,11 @@
 import { useState } from 'react';
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, Legend } from 'recharts';
-import { BarChart3, Table2, Plus } from 'lucide-react';
-import useDashboardStore from '../../stores/dashboardStore';
-import TokenModal from '../forms/TokenModal';
+import { BarChart3, Table2 } from 'lucide-react';
 
 const DEPT_COLORS = { '임상1팀': '#3b82f6', '임상2팀': '#14b8a6', '비임상팀': '#8b5cf6', '경영지원팀': '#f59e0b', '시험검사팀': '#ef4444', '특수시험팀': '#6366f1' };
 
 export default function TestCountTable({ data }) {
   const [viewMode, setViewMode] = useState('table');
-  const [showTokenModal, setShowTokenModal] = useState(false);
-  const { user, selectedMonth, selectedYear } = useDashboardStore();
-  const isManagerPlus = user?.role === 'admin' || user?.role === 'manager';
 
   // 날짜/부서별 피벗
   const deptSet = new Set();
@@ -44,11 +39,6 @@ export default function TestCountTable({ data }) {
       <div className="flex items-center gap-2">
         <button onClick={() => setViewMode('table')} className={`p-1 rounded ${viewMode === 'table' ? 'bg-slate-200' : 'hover:bg-gray-100'}`} title="테이블"><Table2 size={16} /></button>
         <button onClick={() => setViewMode('chart')} className={`p-1 rounded ${viewMode === 'chart' ? 'bg-slate-200' : 'hover:bg-gray-100'}`} title="차트"><BarChart3 size={16} /></button>
-        {isManagerPlus && (
-          <button onClick={() => setShowTokenModal(true)} className="ml-auto flex items-center gap-1 text-xs bg-slate-800 text-white px-2 py-1 rounded-md hover:bg-slate-700">
-            <Plus size={14} /> 입력폼 링크
-          </button>
-        )}
       </div>
 
       {/* 본문 */}
@@ -95,7 +85,6 @@ export default function TestCountTable({ data }) {
         )}
       </div>
 
-      {showTokenModal && <TokenModal onClose={() => setShowTokenModal(false)} />}
     </div>
   );
 }

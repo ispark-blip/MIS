@@ -41,25 +41,9 @@ router.get('/', (req, res) => {
   res.json({ success: true, data: rows, meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
 });
 
-// POST /api/test-counts
-router.post('/', (req, res) => {
-  const { date, department, lab, test_type, count, submitted_by, notes, token } = req.body;
-
-  // 토큰 또는 세션 인증 확인
-  if (!req.session?.user && !token) {
-    return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '인증이 필요합니다.' } });
-  }
-
-  // 토큰 검증
-  if (token) {
-    const tokenRow = db.prepare('SELECT * FROM form_tokens WHERE token = ?').get(token);
-    if (!tokenRow || new Date(tokenRow.expires_at) < new Date()) {
-      return res.status(403).json({ success: false, error: { code: 'TOKEN_EXPIRED', message: '만료되었거나 유효하지 않은 토큰입니다.' } });
-    }
-    if (tokenRow.max_uses > 0 && tokenRow.use_count >= tokenRow.max_uses) {
-      return res.status(403).json({ success: false, error: { code: 'TOKEN_EXHAUSTED', message: '사용 횟수를 초과한 토큰입니다.' } });
-    }
-  }
+// POST /api/test-counts (세션 인증 필요)
+router.post('/', requireAuth, (req, res) => {
+  const { date, department, lab, test_type, count, submitted_by, notes } = req.body;
 
   // 입력 검증
   if (!date || !department || !lab || !test_type || count === undefined || !submitted_by) {
@@ -109,11 +93,6 @@ router.post('/', (req, res) => {
     INSERT INTO test_count_audit_log (test_count_id, date, department, lab, test_type, old_count, new_count, action, changed_by, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(recordId, date, department, lab, test_type, existing ? existing.count : null, countNum, existing ? 'UPDATE' : 'INSERT', submitted_by, notes || null);
-
-  // 토큰 사용 횟수 증가
-  if (token) {
-    db.prepare('UPDATE form_tokens SET use_count = use_count + 1 WHERE token = ?').run(token);
-  }
 
   // SSE broadcast
   const sseManager = req.app.get('sseManager');
