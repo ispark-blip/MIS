@@ -108,7 +108,28 @@ db.exec(`
     expired DATETIME NOT NULL
   );
   CREATE INDEX IF NOT EXISTS idx_sessions_expired ON sessions(expired);
+
+  -- 앱 설정 (브랜딩/대시보드 기본값 등)
+  CREATE TABLE IF NOT EXISTS app_settings (
+    key TEXT PRIMARY KEY,
+    value TEXT,
+    updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+    updated_by TEXT
+  );
 `);
+
+// 기본 설정값 시드 (없을 때만 INSERT)
+const defaultSettings = [
+  ['company_name', '한국피부과학연구원'],
+  ['company_abbr', 'KIDS'],
+  ['system_title', '경영정보현황시스템'],
+  ['logo_url', ''],
+  ['default_lab', '전체'],
+  ['default_year', String(new Date().getFullYear())],
+  ['default_quarter', 'Q' + Math.ceil((new Date().getMonth() + 1) / 3)],
+];
+const insertSetting = db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)');
+for (const [k, v] of defaultSettings) insertSetting.run(k, v);
 
 console.log('[DB] 데이터베이스 초기화 완료:', DB_PATH);
 db.close();

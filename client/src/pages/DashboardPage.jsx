@@ -1,5 +1,6 @@
 import { useEffect } from 'react';
 import { useSSE } from '../hooks/useSSE';
+import { useAuth } from '../hooks/useAuth';
 import useDashboardStore from '../stores/dashboardStore';
 import api from '../utils/api';
 import Header from '../components/layout/Header';
@@ -12,14 +13,28 @@ import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
 
 export default function DashboardPage() {
   useSSE();
+  const { logout } = useAuth();
 
   const {
-    selectedLab, selectedYear, selectedMonth, selectedQuarter,
+    selectedLab, setSelectedLab,
+    selectedYear, setSelectedYear,
+    selectedMonth, selectedQuarter, setSelectedQuarter,
     salesData, setSalesData,
     quarterlyData, setQuarterlyData,
     testCountData, setTestCountData,
     subjectData, setSubjectData,
   } = useDashboardStore();
+
+  // 대시보드 기본값을 서버 설정에서 적용 (최초 1회)
+  useEffect(() => {
+    api.get('/settings').then(r => {
+      const s = r.data.data || {};
+      if (s.default_lab) setSelectedLab(s.default_lab);
+      if (s.default_year) setSelectedYear(parseInt(s.default_year) || new Date().getFullYear());
+      if (s.default_quarter) setSelectedQuarter(s.default_quarter);
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // 데이터 로드
   useEffect(() => {
@@ -39,7 +54,7 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <Header />
+      <Header onLogout={logout} />
 
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_1fr] gap-0">
         {/* Q1: 전사 목표 vs 누적 */}

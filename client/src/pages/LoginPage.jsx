@@ -1,6 +1,7 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useAuth } from '../hooks/useAuth';
 import { LogIn } from 'lucide-react';
+import api from '../utils/api';
 
 export default function LoginPage() {
   const { login, user } = useAuth();
@@ -8,9 +9,24 @@ export default function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [branding, setBranding] = useState({ company_name: '한국피부과학연구원', company_abbr: 'KIDS', system_title: '경영정보현황시스템', logo_url: '' });
+
+  const nextParam = new URLSearchParams(window.location.search).get('next');
+
+  useEffect(() => {
+    api.get('/settings').then(r => {
+      const s = r.data.data || {};
+      setBranding({
+        company_name: s.company_name || '한국피부과학연구원',
+        company_abbr: s.company_abbr || 'KIDS',
+        system_title: s.system_title || '경영정보현황시스템',
+        logo_url: s.logo_url || '',
+      });
+    }).catch(() => {});
+  }, []);
 
   if (user) {
-    window.location.href = '/dashboard';
+    window.location.href = nextParam || '/dashboard';
     return null;
   }
 
@@ -19,7 +35,7 @@ export default function LoginPage() {
     setError('');
     setLoading(true);
     try {
-      await login(employeeId, password);
+      await login(employeeId, password, nextParam);
     } catch (err) {
       setError(err.response?.data?.error?.message || '로그인에 실패했습니다.');
     } finally {
@@ -31,11 +47,15 @@ export default function LoginPage() {
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-2xl shadow-lg p-8 w-full max-w-sm">
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3">
-            <span className="text-white text-lg font-bold">KDRI</span>
+          <div className="w-16 h-16 bg-slate-800 rounded-xl flex items-center justify-center mx-auto mb-3 overflow-hidden">
+            {branding.logo_url ? (
+              <img src={branding.logo_url} alt="로고" className="max-w-full max-h-full object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+            ) : (
+              <span className="text-white text-lg font-bold">{branding.company_abbr}</span>
+            )}
           </div>
-          <h1 className="text-xl font-bold text-slate-800">경영정보현황시스템</h1>
-          <p className="text-sm text-gray-500 mt-1">한국피부과학연구원</p>
+          <h1 className="text-xl font-bold text-slate-800">{branding.system_title}</h1>
+          <p className="text-sm text-gray-500 mt-1">{branding.company_name}</p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">

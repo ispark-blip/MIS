@@ -50,14 +50,19 @@ app.use('/api/test-counts', require('./routes/testCounts'));
 app.use('/api/subjects', require('./routes/subjects'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/admin', require('./routes/admin'));
+app.use('/api/settings', require('./routes/settings'));
+
+// 업로드 파일 서빙 (로고 등)
+app.use('/uploads', express.static(path.join(__dirname, '..', 'data', 'uploads')));
 
 // React 빌드 파일 서빙 (프로덕션)
 const clientDist = path.join(__dirname, '..', 'client', 'dist');
 app.use(express.static(clientDist));
 app.get('*', (req, res) => {
-  if (!req.path.startsWith('/api')) {
-    res.sendFile(path.join(clientDist, 'index.html'));
+  if (req.path.startsWith('/api') || req.path.startsWith('/uploads')) {
+    return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '경로를 찾을 수 없습니다.' } });
   }
+  res.sendFile(path.join(clientDist, 'index.html'));
 });
 
 // Google Sheets 연동 시작
@@ -84,7 +89,7 @@ function getLocalIps() {
 }
 
 app.listen(PORT, HOST, () => {
-  console.log(`[서버] KDRI MIS 서버 시작 (포트 ${PORT})`);
+  console.log(`[서버] KIDS MIS 서버 시작 (포트 ${PORT})`);
   console.log(`  - 로컬:      http://localhost:${PORT}`);
   for (const ip of getLocalIps()) {
     console.log(`  - 네트워크:  http://${ip}:${PORT}`);

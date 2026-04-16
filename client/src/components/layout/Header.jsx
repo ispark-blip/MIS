@@ -1,5 +1,5 @@
-import { RefreshCw, LogOut, LogIn, Menu, X } from 'lucide-react';
-import { useState } from 'react';
+import { RefreshCw, LogOut, LogIn, Menu, X, Settings } from 'lucide-react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDashboardStore from '../../stores/dashboardStore';
 import api from '../../utils/api';
@@ -8,6 +8,7 @@ export default function Header({ onLogout }) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [branding, setBranding] = useState({ company_abbr: 'KIDS', system_title: '경영정보현황시스템', logo_url: '' });
 
   const {
     user, selectedLab, setSelectedLab,
@@ -15,6 +16,18 @@ export default function Header({ onLogout }) {
     selectedMonth, setSelectedMonth,
     connectionStatus,
   } = useDashboardStore();
+
+  // 브랜딩 로드
+  useEffect(() => {
+    api.get('/settings').then(r => {
+      const s = r.data.data || {};
+      setBranding({
+        company_abbr: s.company_abbr || 'KIDS',
+        system_title: s.system_title || '경영정보현황시스템',
+        logo_url: s.logo_url || '',
+      });
+    }).catch(() => {});
+  }, []);
 
   const handleRefresh = async () => {
     setRefreshing(true);
@@ -28,8 +41,14 @@ export default function Header({ onLogout }) {
     <header className="h-16 bg-slate-800 text-white flex items-center px-4 gap-4 shrink-0">
       {/* 로고 + 타이틀 */}
       <div className="flex items-center gap-2 shrink-0">
-        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold">KDRI</div>
-        <h1 className="text-lg font-bold hidden sm:block">경영정보현황시스템</h1>
+        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold overflow-hidden">
+          {branding.logo_url ? (
+            <img src={branding.logo_url} alt="로고" className="max-w-full max-h-full object-contain" onError={(e) => { e.target.style.display = 'none'; }} />
+          ) : (
+            <span>{branding.company_abbr}</span>
+          )}
+        </div>
+        <h1 className="text-lg font-bold hidden sm:block">{branding.system_title}</h1>
       </div>
 
       {/* 모바일 메뉴 토글 */}
@@ -84,6 +103,11 @@ export default function Header({ onLogout }) {
           {user ? (
             <>
               <span className="text-sm">{user.name}</span>
+              {user.role === 'admin' && (
+                <button onClick={() => navigate('/admin')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="관리자 페이지">
+                  <Settings size={18} />
+                </button>
+              )}
               {onLogout && (
                 <button onClick={onLogout} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그아웃">
                   <LogOut size={18} />
@@ -91,7 +115,7 @@ export default function Header({ onLogout }) {
               )}
             </>
           ) : (
-            <button onClick={() => navigate('/login')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그인">
+            <button onClick={() => navigate('/login')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="어드민 로그인">
               <LogIn size={18} />
             </button>
           )}

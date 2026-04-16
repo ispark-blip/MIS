@@ -55,12 +55,13 @@ router.get('/', (req, res) => {
   res.json({ success: true, data: rows, meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
 });
 
-// POST /api/test-counts (세션 인증 필요)
-router.post('/', requireAuth, (req, res) => {
-  const { date, department, lab, test_type, count, submitted_by, notes } = req.body;
+// POST /api/test-counts (관리자만)
+router.post('/', requireAuth, requireRole('admin'), (req, res) => {
+  const { date, department, lab, test_type, count, notes } = req.body;
+  const submitted_by = req.session.user.employee_id;
 
   // 입력 검증
-  if (!date || !department || !lab || !test_type || count === undefined || !submitted_by) {
+  if (!date || !department || !lab || !test_type || count === undefined) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '필수 항목을 모두 입력해주세요.' } });
   }
 
@@ -73,14 +74,10 @@ router.post('/', requireAuth, (req, res) => {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '시험유형은 50자 이내여야 합니다.' } });
   }
 
-  // 날짜 검증 (오늘 기준 -7일 ~ 오늘)
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
+  // 날짜 유효성 체크 (관리자는 과거/미래 모두 입력 가능, 포맷만 확인)
   const inputDate = new Date(date);
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-  if (inputDate < sevenDaysAgo || inputDate > today) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '시험일자는 오늘 기준 7일 이내여야 합니다.' } });
+  if (isNaN(inputDate.getTime())) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '시험일자 형식이 올바르지 않습니다 (YYYY-MM-DD).' } });
   }
 
   if (!labs.includes(lab)) {

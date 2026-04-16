@@ -19,11 +19,11 @@ export function useAuth() {
       .finally(() => setLoading(false));
   }, []);
 
-  const login = async (employee_id, password) => {
+  const login = async (employee_id, password, next) => {
     const res = await api.post('/auth/login', { employee_id, password });
     setUser(res.data.data.user);
     if (res.data.data.csrfToken) localStorage.setItem('csrfToken', res.data.data.csrfToken);
-    navigate('/dashboard');
+    navigate(next || '/dashboard');
     return res.data;
   };
 

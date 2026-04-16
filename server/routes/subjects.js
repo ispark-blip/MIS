@@ -1,5 +1,8 @@
 const express = require('express');
 const db = require('../config/database');
+const { requireAuth, requireRole } = require('../middleware/auth');
+const { logAccess } = require('../middleware/logger');
+const { labs } = require('../config/departments');
 
 const router = express.Router();
 
@@ -69,6 +72,46 @@ router.get('/summary', (req, res) => {
   });
 
   res.json({ success: true, data: summary, meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
+});
+
+// POST /api/subjects - 관리자만 (시험대상자 인원수 직접 입력)
+router.post('/', requireAuth, requireRole('admin'), (req, res) => {
+  const { date, lab, department, subject_count, study_name } = req.body;
+
+  if (!date || !lab || !department || subject_count === undefined) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '필수 항목을 모두 입력해주세요.' } });
+  }
+
+  const countNum = parseInt(subject_count);
+  if (isNaN(countNum) || countNum < 0 || countNum > 99999) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '인원수는 0~99999 사이 정수여야 합니다.' } });
+  }
+
+  if (!labs.includes(lab)) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '유효하지 않은 연구소입니다.' } });
+  }
+
+  const inputDate = new Date(date);
+  if (isNaN(inputDate.getTime())) {
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '일자 형식이 올바르지 않습니다 (YYYY-MM-DD).' } });
+  }
+
+  // study_name이 NULL이면 UNIQUE 제약이 작동하지 않으므로 빈 문자열로 정규화
+  const studyKey = study_name && String(study_name).trim() ? String(study_name).trim() : '';
+
+  db.prepare(`
+    INSERT INTO daily_subject_counts (date, lab, department, subject_count, study_name)
+    VALUES (?, ?, ?, ?, ?)
+    ON CONFLICT(date, lab, department, study_name)
+    DO UPDATE SET subject_count = excluded.subject_count
+  `).run(date, lab, department, countNum, studyKey);
+
+  const sseManager = req.app.get('sseManager');
+  if (sseManager) sseManager.broadcast('subjects-update', {});
+
+  logAccess(req, 'submit', `시험대상자 입력: ${date} ${lab} ${department} ${countNum}명`);
+
+  res.status(201).json({ success: true, data: { message: '입력 완료' } });
 });
 
 module.exports = router;
