@@ -24,9 +24,9 @@ export default function DashboardPage() {
 
   // 데이터 로드
   useEffect(() => {
-    api.get('/sales/overview', { params: { lab: selectedLab } }).then(r => setSalesData(r.data.data)).catch(() => {});
+    api.get('/sales/overview', { params: { lab: selectedLab, year: selectedYear } }).then(r => setSalesData(r.data.data)).catch(() => {});
     api.get('/subjects/summary').then(r => setSubjectData(r.data.data)).catch(() => {});
-  }, [selectedLab]);
+  }, [selectedLab, selectedYear]);
 
   useEffect(() => {
     api.get('/sales/quarterly', { params: { q: selectedQuarter, year: selectedYear, lab: selectedLab } })

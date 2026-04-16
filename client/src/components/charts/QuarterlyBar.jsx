@@ -13,6 +13,8 @@ export default function QuarterlyBar({ data }) {
     목표: d.target,
     실적: d.actual,
     rate: d.achievementRate,
+    targetLabel: formatCurrency(d.target),
+    actualLabel: formatCurrency(d.actual),
   }));
 
   return (
@@ -35,18 +37,29 @@ export default function QuarterlyBar({ data }) {
       {/* 그룹 바 차트 */}
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 15, right: 10, left: 0, bottom: 5 }}>
+          <BarChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 5 }}>
             <XAxis dataKey="name" tick={{ fontSize: 11 }} />
             <YAxis tickFormatter={formatAxisLabel} tick={{ fontSize: 10 }} width={45} />
             <Tooltip formatter={(v) => formatCurrency(v)} />
             <Legend wrapperStyle={{ fontSize: 11 }} />
-            <Bar dataKey="목표" fill="#cbd5e1" radius={[2, 2, 0, 0]} />
+            <Bar dataKey="목표" fill="#cbd5e1" radius={[2, 2, 0, 0]}>
+              <LabelList
+                dataKey="targetLabel"
+                position="top"
+                style={{ fontSize: 10, fill: '#64748b' }}
+              />
+            </Bar>
             <Bar dataKey="실적" fill="#3b82f6" radius={[2, 2, 0, 0]}>
               <LabelList
-                dataKey="rate"
+                dataKey="actualLabel"
                 position="top"
+                style={{ fontSize: 10, fill: '#1e40af', fontWeight: 600 }}
+              />
+              <LabelList
+                dataKey="rate"
+                position="insideTop"
                 formatter={(v) => `${v}%`}
-                style={{ fontSize: 10, fill: '#3b82f6' }}
+                style={{ fontSize: 9, fill: '#ffffff' }}
               />
             </Bar>
           </BarChart>
