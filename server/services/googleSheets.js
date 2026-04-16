@@ -1,6 +1,15 @@
 const fs = require('fs');
 const sheetsConfig = require('../config/sheets');
 
+// 쉼표 포함 문자열/숫자를 안전하게 숫자로 변환
+function toNum(v) {
+  if (v === null || v === undefined || v === '') return 0;
+  if (typeof v === 'number') return isFinite(v) ? v : 0;
+  const cleaned = String(v).replace(/[,\s]/g, '').replace(/[^\d.-]/g, '');
+  const n = parseFloat(cleaned);
+  return isNaN(n) ? 0 : n;
+}
+
 class GoogleSheetsService {
   constructor(eventEmitter) {
     this.cache = { sales: null, testCounts: null, subjects: null };
@@ -44,6 +53,7 @@ class GoogleSheetsService {
       const salesRes = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_SALES,
         range: sheetsConfig.SHEET_RANGE_SALES,
+        valueRenderOption: 'UNFORMATTED_VALUE',
       });
       return { sales: salesRes.data.values || [] };
     } catch (err) {
@@ -57,14 +67,14 @@ class GoogleSheetsService {
     return (this.cache.sales || [])
       .filter(row => row && row[0] && row[1] && row[2] && row[3])
       .map(row => ({
-        year: parseInt(row[0]),
-        month: parseInt(row[1]),
-        name: row[2],
-        lab: row[3],
-        target_monthly: parseInt(row[4]) || 0,
-        actual_monthly: parseInt(row[5]) || 0,
+        year: toNum(row[0]),
+        month: toNum(row[1]),
+        name: String(row[2]).trim(),
+        lab: String(row[3]).trim(),
+        target_monthly: toNum(row[4]),
+        actual_monthly: toNum(row[5]),
       }))
-      .filter(r => !isNaN(r.year) && r.month >= 1 && r.month <= 12);
+      .filter(r => r.year > 0 && r.month >= 1 && r.month <= 12);
   }
 
   getCachedSalesOverview(lab, year) {
@@ -143,6 +153,7 @@ class GoogleSheetsService {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_TESTCOUNTS,
         range: sheetsConfig.SHEET_RANGE_TESTCOUNTS,
+        valueRenderOption: 'UNFORMATTED_VALUE',
       });
       return res.data.values || [];
     } catch (err) {
@@ -154,16 +165,16 @@ class GoogleSheetsService {
   transformTestCountsData() {
     // 시트 컬럼: 날짜 | 연구소 | 부서 | 시험유형 | 건수 | 입력자 | 비고
     return (this.cache.testCounts || [])
-      .filter(row => row && row[0] && row[4])
+      .filter(row => row && row[0] && (row[4] !== undefined && row[4] !== ''))
       .map((row, idx) => ({
         id: `sheet-${idx + 1}`,
-        date: row[0],
-        lab: row[1] || '',
-        department: row[2] || '',
-        test_type: row[3] || '',
-        count: parseInt(row[4]) || 0,
-        submitted_by: row[5] || '',
-        notes: row[6] || null,
+        date: String(row[0]),
+        lab: String(row[1] || '').trim(),
+        department: String(row[2] || '').trim(),
+        test_type: String(row[3] || '').trim(),
+        count: toNum(row[4]),
+        submitted_by: String(row[5] || '').trim(),
+        notes: row[6] ? String(row[6]) : null,
       }));
   }
 
@@ -188,6 +199,7 @@ class GoogleSheetsService {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_SUBJECTS,
         range: sheetsConfig.SHEET_RANGE_SUBJECTS,
+        valueRenderOption: 'UNFORMATTED_VALUE',
       });
       return res.data.values || [];
     } catch (err) {
@@ -201,11 +213,11 @@ class GoogleSheetsService {
     return (this.cache.subjects || [])
       .filter(row => row && row[0])
       .map(row => ({
-        date: row[0],
-        lab: row[1] || '',
-        department: row[2] || '',
-        subject_count: parseInt(row[3]) || 0,
-        study_name: row[4] || null,
+        date: String(row[0]),
+        lab: String(row[1] || '').trim(),
+        department: String(row[2] || '').trim(),
+        subject_count: toNum(row[3]),
+        study_name: row[4] ? String(row[4]) : null,
       }));
   }
 

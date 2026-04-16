@@ -20,12 +20,12 @@ export default function QuarterlyBar({ data }) {
   return (
     <div className="h-full flex flex-col gap-2">
       {/* 분기 선택 탭 */}
-      <div className="flex gap-1">
+      <div className="flex gap-2">
         {quarters.map((q) => (
           <button
             key={q}
             onClick={() => setSelectedQuarter(q)}
-            className={`px-3 py-1 text-xs rounded-md font-medium transition-colors ${
+            className={`px-4 py-1.5 text-sm rounded-md font-semibold transition-colors ${
               selectedQuarter === q ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >
@@ -37,29 +37,29 @@ export default function QuarterlyBar({ data }) {
       {/* 그룹 바 차트 */}
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={chartData} margin={{ top: 25, right: 10, left: 0, bottom: 5 }}>
-            <XAxis dataKey="name" tick={{ fontSize: 11 }} />
-            <YAxis tickFormatter={formatAxisLabel} tick={{ fontSize: 10 }} width={45} />
+          <BarChart data={chartData} margin={{ top: 30, right: 10, left: 0, bottom: 5 }}>
+            <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: 600 }} />
+            <YAxis tickFormatter={formatAxisLabel} tick={{ fontSize: 12 }} width={55} />
             <Tooltip formatter={(v) => formatCurrency(v)} />
-            <Legend wrapperStyle={{ fontSize: 11 }} />
+            <Legend wrapperStyle={{ fontSize: 13 }} />
             <Bar dataKey="목표" fill="#cbd5e1" radius={[2, 2, 0, 0]}>
               <LabelList
                 dataKey="targetLabel"
                 position="top"
-                style={{ fontSize: 10, fill: '#64748b' }}
+                style={{ fontSize: 14, fill: '#64748b', fontWeight: 600 }}
               />
             </Bar>
             <Bar dataKey="실적" fill="#3b82f6" radius={[2, 2, 0, 0]}>
               <LabelList
                 dataKey="actualLabel"
                 position="top"
-                style={{ fontSize: 10, fill: '#1e40af', fontWeight: 600 }}
+                style={{ fontSize: 15, fill: '#1e40af', fontWeight: 700 }}
               />
               <LabelList
                 dataKey="rate"
                 position="insideTop"
                 formatter={(v) => `${v}%`}
-                style={{ fontSize: 9, fill: '#ffffff' }}
+                style={{ fontSize: 14, fill: '#ffffff', fontWeight: 700 }}
               />
             </Bar>
           </BarChart>

@@ -1,25 +1,33 @@
 /**
- * 금액 표시 포맷 (원 단위 → 표시용)
- * 1억 이상: X.X억 / 1천만 이상: X,XXX만 / 그 외: X,XXX,XXX원
+ * 금액 표시 포맷 (원 단위 → 항상 억 단위로 표시)
+ * 100억 이상: 1,234억 / 1억 이상: 12.3억 / 1억 미만: 0.12억
  */
 export function formatCurrency(amount) {
-  if (amount === 0) return '0원';
-  if (amount >= 100000000) {
-    const billions = amount / 100000000;
+  if (!amount || amount === 0) return '0억';
+  const billions = amount / 100000000;
+
+  if (Math.abs(billions) >= 100) {
+    return `${Math.round(billions).toLocaleString()}억`;
+  }
+  if (Math.abs(billions) >= 1) {
     return billions % 1 === 0 ? `${billions}억` : `${billions.toFixed(1)}억`;
   }
-  if (amount >= 10000000) {
-    return `${Math.round(amount / 10000).toLocaleString()}만`;
+  if (Math.abs(billions) >= 0.01) {
+    return `${billions.toFixed(2)}억`;
   }
-  return `${amount.toLocaleString()}원`;
+  return `${billions.toFixed(3)}억`;
 }
 
-/** 차트 Y축용 (항상 억 단위) */
+/** 차트 Y축용 (항상 억 단위 정수) */
 export function formatAxisLabel(value) {
-  return `${(value / 100000000).toFixed(0)}억`;
+  if (!value) return '0억';
+  const b = value / 100000000;
+  if (Math.abs(b) >= 100) return `${Math.round(b).toLocaleString()}억`;
+  if (Math.abs(b) >= 1) return `${Math.round(b)}억`;
+  return `${b.toFixed(1)}억`;
 }
 
-/** 차트 툴팁용 (소수점 2자리 억) */
+/** 차트 툴팁용 (소수점 1자리 억) */
 export function formatTooltip(value) {
-  return `${(value / 100000000).toFixed(2)}억`;
+  return formatCurrency(value);
 }

@@ -1,4 +1,4 @@
-import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend } from 'recharts';
+import { PieChart, Pie, Cell, ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, LabelList } from 'recharts';
 import { formatCurrency } from '../../utils/formatCurrency';
 
 const COLORS = ['#3b82f6', '#14b8a6', '#8b5cf6', '#f59e0b', '#ef4444', '#6366f1'];
@@ -18,15 +18,25 @@ export default function SalesDonut({ data }) {
     { name: '잔여', value: Math.max(totalTarget - totalActual, 0) },
   ];
 
-  const stackData = departments.map((d) => ({ name: d.name, value: d.actual }));
+  const stackData = departments.map((d) => ({
+    name: d.name,
+    value: d.actual,
+    label: formatCurrency(d.actual),
+  }));
 
   return (
     <div className="h-full flex flex-col gap-2">
-      {/* 수치 표시 */}
-      <div className="flex items-center gap-4 text-sm">
-        <div><span className="text-gray-500">목표</span> <span className="font-bold">{formatCurrency(totalTarget)}</span></div>
-        <div><span className="text-gray-500">달성</span> <span className="font-bold">{formatCurrency(totalActual)}</span></div>
-        <div className="ml-auto font-bold text-lg" style={{ color: getAchievementColor(achievementRate) }}>
+      {/* 수치 표시 (3배 크기) */}
+      <div className="flex items-center gap-5 flex-wrap">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm text-gray-500">목표</span>
+          <span className="text-3xl font-bold">{formatCurrency(totalTarget)}</span>
+        </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm text-gray-500">달성</span>
+          <span className="text-3xl font-bold">{formatCurrency(totalActual)}</span>
+        </div>
+        <div className="ml-auto font-bold text-5xl" style={{ color: getAchievementColor(achievementRate) }}>
           {achievementRate}%
         </div>
       </div>
@@ -44,15 +54,20 @@ export default function SalesDonut({ data }) {
           </ResponsiveContainer>
         </div>
 
-        {/* 부서별 스택바 */}
+        {/* 부서별 가로 바 + 금액 표시 */}
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 10, top: 5, bottom: 5 }}>
+            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 55, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={60} tick={{ fontSize: 11 }} />
+              <YAxis type="category" dataKey="name" width={65} tick={{ fontSize: 13 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {stackData.map((_, i) => <Cell key={i} fill={COLORS[i % COLORS.length]} />)}
+                <LabelList
+                  dataKey="label"
+                  position="right"
+                  style={{ fontSize: 14, fill: '#1e293b', fontWeight: 700 }}
+                />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
