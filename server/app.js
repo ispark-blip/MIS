@@ -6,6 +6,7 @@ const cors = require('cors');
 const helmet = require('helmet');
 const cookieParser = require('cookie-parser');
 const path = require('path');
+const os = require('os');
 
 const SQLiteSessionStore = require('./config/sessionStore');
 const SSEManager = require('./services/sseManager');
@@ -13,6 +14,7 @@ const GoogleSheetsService = require('./services/googleSheets');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+const HOST = process.env.HOST || '0.0.0.0';
 
 // SSE 매니저 초기화
 const sseManager = new SSEManager();
@@ -69,6 +71,22 @@ app.get('*', (req, res) => {
   }
 })();
 
-app.listen(PORT, () => {
-  console.log(`[서버] KDRI MIS 서버 시작: http://localhost:${PORT}`);
+// 로컬 네트워크 IP 목록 추출
+function getLocalIps() {
+  const nets = os.networkInterfaces();
+  const ips = [];
+  for (const name of Object.keys(nets)) {
+    for (const net of nets[name] || []) {
+      if (net.family === 'IPv4' && !net.internal) ips.push(net.address);
+    }
+  }
+  return ips;
+}
+
+app.listen(PORT, HOST, () => {
+  console.log(`[서버] KDRI MIS 서버 시작 (포트 ${PORT})`);
+  console.log(`  - 로컬:      http://localhost:${PORT}`);
+  for (const ip of getLocalIps()) {
+    console.log(`  - 네트워크:  http://${ip}:${PORT}`);
+  }
 });
