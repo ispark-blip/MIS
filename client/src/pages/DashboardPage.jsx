@@ -1,0 +1,84 @@
+import { useEffect } from 'react';
+import { useAuth } from '../hooks/useAuth';
+import { useSSE } from '../hooks/useSSE';
+import useDashboardStore from '../stores/dashboardStore';
+import api from '../utils/api';
+import Header from '../components/layout/Header';
+import SalesDonut from '../components/charts/SalesDonut';
+import QuarterlyBar from '../components/charts/QuarterlyBar';
+import TestCountTable from '../components/charts/TestCountTable';
+import SubjectCards from '../components/charts/SubjectCards';
+import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
+
+export default function DashboardPage() {
+  const { logout } = useAuth();
+  useSSE();
+
+  const {
+    selectedLab, selectedYear, selectedMonth, selectedQuarter,
+    salesData, setSalesData,
+    quarterlyData, setQuarterlyData,
+    testCountData, setTestCountData,
+    subjectData, setSubjectData,
+  } = useDashboardStore();
+
+  // 데이터 로드
+  useEffect(() => {
+    api.get('/sales/overview', { params: { lab: selectedLab } }).then(r => setSalesData(r.data.data)).catch(() => {});
+    api.get('/subjects/summary').then(r => setSubjectData(r.data.data)).catch(() => {});
+  }, [selectedLab]);
+
+  useEffect(() => {
+    api.get('/sales/quarterly', { params: { q: selectedQuarter, year: selectedYear, lab: selectedLab } })
+      .then(r => setQuarterlyData(r.data.data)).catch(() => {});
+  }, [selectedLab, selectedQuarter, selectedYear]);
+
+  useEffect(() => {
+    api.get('/test-counts', { params: { month: selectedMonth, year: selectedYear, lab: selectedLab } })
+      .then(r => setTestCountData(r.data.data)).catch(() => {});
+  }, [selectedLab, selectedMonth, selectedYear]);
+
+  return (
+    <div className="h-screen flex flex-col bg-gray-50">
+      <Header onLogout={logout} />
+
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_1fr] gap-0">
+        {/* Q1: 전사 목표 vs 누적 */}
+        <section className="border-b border-r border-gray-200 flex flex-col min-h-0">
+          <div className="bg-slate-50 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200 shrink-0">
+            <TrendingUp size={15} className="text-slate-600" />
+            <span className="text-xs font-semibold text-slate-700">전사 목표 vs 누적매출</span>
+          </div>
+          <div className="flex-1 p-3 min-h-0"><SalesDonut data={salesData} /></div>
+        </section>
+
+        {/* Q2: 부서별 분기 매출 */}
+        <section className="border-b border-gray-200 flex flex-col min-h-0">
+          <div className="bg-slate-50 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200 shrink-0">
+            <BarChart3 size={15} className="text-slate-600" />
+            <span className="text-xs font-semibold text-slate-700">부서별 분기 매출</span>
+          </div>
+          <div className="flex-1 p-3 min-h-0"><QuarterlyBar data={quarterlyData} /></div>
+        </section>
+
+        {/* Q3: 일일 시험건수 */}
+        <section className="border-r border-gray-200 flex flex-col min-h-0">
+          <div className="bg-slate-50 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200 shrink-0">
+            <ClipboardList size={15} className="text-slate-600" />
+            <span className="text-xs font-semibold text-slate-700">일일 시험건수 ({selectedMonth}월)</span>
+          </div>
+          <div className="flex-1 p-3 min-h-0"><TestCountTable data={testCountData} /></div>
+        </section>
+
+        {/* Q4: 시험대상자 인원수 */}
+        <section className="flex flex-col min-h-0">
+          <div className="bg-slate-50 px-3 py-1.5 flex items-center gap-2 border-b border-gray-200 shrink-0">
+            <Users size={15} className="text-slate-600" />
+            <span className="text-xs font-semibold text-slate-700">시험대상자 인원수</span>
+          </div>
+          <div className="flex-1 p-3 min-h-0"><SubjectCards data={subjectData} /></div>
+        </section>
+      </div>
+    </div>
+  );
+}

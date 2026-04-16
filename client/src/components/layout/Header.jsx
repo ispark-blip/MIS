@@ -1,0 +1,90 @@
+import { RefreshCw, LogOut, Menu, X } from 'lucide-react';
+import { useState } from 'react';
+import useDashboardStore from '../../stores/dashboardStore';
+import api from '../../utils/api';
+
+export default function Header({ onLogout }) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+
+  const {
+    user, selectedLab, setSelectedLab,
+    selectedYear, setSelectedYear,
+    selectedMonth, setSelectedMonth,
+    connectionStatus,
+  } = useDashboardStore();
+
+  const handleRefresh = async () => {
+    setRefreshing(true);
+    try {
+      await api.post('/sales/refresh');
+    } catch { /* ignore */ }
+    setRefreshing(false);
+  };
+
+  return (
+    <header className="h-16 bg-slate-800 text-white flex items-center px-4 gap-4 shrink-0">
+      {/* 로고 + 타이틀 */}
+      <div className="flex items-center gap-2 shrink-0">
+        <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center text-sm font-bold">KDRI</div>
+        <h1 className="text-lg font-bold hidden sm:block">경영정보현황시스템</h1>
+      </div>
+
+      {/* 모바일 메뉴 토글 */}
+      <button className="md:hidden ml-auto" onClick={() => setMobileOpen(!mobileOpen)}>
+        {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+      </button>
+
+      {/* 필터/액션 영역 */}
+      <div className={`${mobileOpen ? 'flex' : 'hidden'} md:flex flex-col md:flex-row absolute md:relative top-16 md:top-0 left-0 right-0 bg-slate-800 md:bg-transparent p-4 md:p-0 gap-3 md:gap-3 ml-auto items-stretch md:items-center z-50`}>
+        {/* 연구소 선택 */}
+        <select
+          value={selectedLab}
+          onChange={(e) => setSelectedLab(e.target.value)}
+          className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0 focus:ring-1 focus:ring-white/30"
+        >
+          <option value="전체">전체</option>
+          <option value="문정">문정</option>
+          <option value="가산">가산</option>
+        </select>
+
+        {/* 연도/월 선택 */}
+        <div className="flex gap-1">
+          <select
+            value={selectedYear}
+            onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+            className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0"
+          >
+            {[2024, 2025, 2026].map(y => <option key={y} value={y}>{y}년</option>)}
+          </select>
+          <select
+            value={selectedMonth}
+            onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+            className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0"
+          >
+            {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}월</option>)}
+          </select>
+        </div>
+
+        {/* 새로고침 */}
+        <button onClick={handleRefresh} disabled={refreshing} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="새로고침">
+          <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+        </button>
+
+        {/* SSE 상태 */}
+        <div className="flex items-center gap-1.5 text-xs">
+          <span className={`w-2 h-2 rounded-full ${connectionStatus === 'connected' ? 'bg-green-400' : 'bg-red-400'}`} />
+          <span className="hidden lg:inline">{connectionStatus === 'connected' ? '실시간' : '연결끊김'}</span>
+        </div>
+
+        {/* 사용자 / 로그아웃 */}
+        <div className="flex items-center gap-2 md:ml-2">
+          <span className="text-sm">{user?.name}</span>
+          <button onClick={onLogout} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그아웃">
+            <LogOut size={18} />
+          </button>
+        </div>
+      </div>
+    </header>
+  );
+}

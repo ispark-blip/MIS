@@ -1,0 +1,10 @@
+module.exports = {
+  CREDENTIALS_PATH: process.env.GOOGLE_CREDENTIALS_PATH || './credentials.json',
+  SPREADSHEET_ID_SALES: process.env.SHEET_ID_SALES,
+  SPREADSHEET_ID_SUBJECTS: process.env.SHEET_ID_SUBJECTS,
+  SHEET_RANGE_SALES: process.env.SHEET_RANGE_SALES || '매출현황!A2:I',
+  SHEET_RANGE_TOTAL: process.env.SHEET_RANGE_TOTAL || '전사목표!A2:C',
+  SHEET_RANGE_SUBJECTS: process.env.SHEET_RANGE_SUBJECTS || '시험대상자현황!A2:G',
+  POLLING_INTERVAL_MS: parseInt(process.env.POLLING_INTERVAL) || 30000,
+  CACHE_TTL_MS: 25000,
+};
