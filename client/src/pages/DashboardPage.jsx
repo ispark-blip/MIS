@@ -1,5 +1,4 @@
 import { useEffect } from 'react';
-import { useAuth } from '../hooks/useAuth';
 import { useSSE } from '../hooks/useSSE';
 import useDashboardStore from '../stores/dashboardStore';
 import api from '../utils/api';
@@ -11,7 +10,6 @@ import SubjectCards from '../components/charts/SubjectCards';
 import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
 
 export default function DashboardPage() {
-  const { logout } = useAuth();
   useSSE();
 
   const {
@@ -40,7 +38,7 @@ export default function DashboardPage() {
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
-      <Header onLogout={logout} />
+      <Header />
 
       <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 grid-rows-[1fr_1fr] gap-0">
         {/* Q1: 전사 목표 vs 누적 */}

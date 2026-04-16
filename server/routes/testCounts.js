@@ -6,8 +6,8 @@ const { labs } = require('../config/departments');
 
 const router = express.Router();
 
-// GET /api/test-counts
-router.get('/', requireAuth, (req, res) => {
+// GET /api/test-counts (공개)
+router.get('/', (req, res) => {
   const { month, year, lab = '전체', test_type } = req.query;
   const now = new Date();
   const m = parseInt(month) || (now.getMonth() + 1);

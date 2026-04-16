@@ -1,10 +1,9 @@
 const express = require('express');
-const { requireAuth, requireRole } = require('../middleware/auth');
 
 const router = express.Router();
 
-// GET /api/sales/overview - 전사 목표/누적 + 부서별 기여도
-router.get('/overview', requireAuth, (req, res) => {
+// GET /api/sales/overview - 전사 목표/누적 + 부서별 기여도 (공개)
+router.get('/overview', (req, res) => {
   const sheetsService = req.app.get('sheetsService');
   const lab = req.query.lab || '전체';
   const year = parseInt(req.query.year) || new Date().getFullYear();
@@ -26,8 +25,8 @@ router.get('/overview', requireAuth, (req, res) => {
   });
 });
 
-// GET /api/sales/quarterly - 부서별 분기 매출
-router.get('/quarterly', requireAuth, (req, res) => {
+// GET /api/sales/quarterly - 부서별 분기 매출 (공개)
+router.get('/quarterly', (req, res) => {
   const sheetsService = req.app.get('sheetsService');
   const { q = 'Q1', year = new Date().getFullYear(), lab = '전체' } = req.query;
 
@@ -48,8 +47,8 @@ router.get('/quarterly', requireAuth, (req, res) => {
   });
 });
 
-// POST /api/sales/refresh - 수동 새로고침
-router.post('/refresh', requireAuth, requireRole('admin', 'manager'), async (req, res) => {
+// POST /api/sales/refresh - 수동 새로고침 (공개)
+router.post('/refresh', async (req, res) => {
   const sheetsService = req.app.get('sheetsService');
   if (!sheetsService) {
     return res.json({ success: true, data: { message: 'Google Sheets 미연동 상태. 더미 데이터 사용 중.' } });

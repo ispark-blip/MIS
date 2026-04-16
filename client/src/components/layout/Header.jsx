@@ -1,9 +1,11 @@
-import { RefreshCw, LogOut, Menu, X } from 'lucide-react';
+import { RefreshCw, LogOut, LogIn, Menu, X } from 'lucide-react';
 import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import useDashboardStore from '../../stores/dashboardStore';
 import api from '../../utils/api';
 
 export default function Header({ onLogout }) {
+  const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
@@ -77,12 +79,22 @@ export default function Header({ onLogout }) {
           <span className="hidden lg:inline">{connectionStatus === 'connected' ? '실시간' : '연결끊김'}</span>
         </div>
 
-        {/* 사용자 / 로그아웃 */}
+        {/* 사용자 / 로그인·로그아웃 */}
         <div className="flex items-center gap-2 md:ml-2">
-          <span className="text-sm">{user?.name}</span>
-          <button onClick={onLogout} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그아웃">
-            <LogOut size={18} />
-          </button>
+          {user ? (
+            <>
+              <span className="text-sm">{user.name}</span>
+              {onLogout && (
+                <button onClick={onLogout} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그아웃">
+                  <LogOut size={18} />
+                </button>
+              )}
+            </>
+          ) : (
+            <button onClick={() => navigate('/login')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="로그인">
+              <LogIn size={18} />
+            </button>
+          )}
         </div>
       </div>
     </header>
