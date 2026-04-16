@@ -23,6 +23,17 @@ router.get('/', (req, res) => {
 
 // GET /api/subjects/summary (공개)
 router.get('/summary', (req, res) => {
+  // 1순위: Google Sheets 데이터
+  const sheetsService = req.app.get('sheetsService');
+  const sheetSummary = sheetsService ? sheetsService.getCachedSubjectsSummary() : null;
+  if (sheetSummary) {
+    return res.json({
+      success: true,
+      data: sheetSummary,
+      meta: { timestamp: new Date().toISOString(), source: 'google-sheets' },
+    });
+  }
+
   const today = new Date().toISOString().split('T')[0];
   const now = new Date();
   const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
