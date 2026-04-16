@@ -33,9 +33,9 @@ export default function DashboardPage() {
   }, [selectedLab, selectedQuarter, selectedYear]);
 
   useEffect(() => {
-    api.get('/test-counts', { params: { month: selectedMonth, year: selectedYear, lab: selectedLab } })
+    api.get('/test-counts/summary')
       .then(r => setTestCountData(r.data.data)).catch(() => {});
-  }, [selectedLab, selectedMonth, selectedYear]);
+  }, []);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">
@@ -68,7 +68,7 @@ export default function DashboardPage() {
         <section className="border-r border-gray-200 flex flex-col min-h-0">
           <div className="bg-slate-50 px-4 py-3 flex items-center gap-3 border-b border-gray-200 shrink-0">
             <ClipboardList size={28} className="text-slate-600" />
-            <span className="text-2xl font-bold text-slate-700">일일 시험건수 ({selectedMonth}월)</span>
+            <span className="text-2xl font-bold text-slate-700">일일 시험건수</span>
           </div>
           <div className="flex-1 p-3 min-h-0">
             <ChartErrorBoundary resetKey={testCountData}><TestCountTable data={testCountData} /></ChartErrorBoundary>

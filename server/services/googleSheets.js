@@ -219,6 +219,54 @@ class GoogleSheetsService {
     });
   }
 
+  // 시험건수 summary (시험대상자 summary 와 동일 형식: 연구소별 today/월/연/최근30일/부서별)
+  getCachedTestCountsSummary() {
+    if (!this.cache.testCounts) return null;
+    const rows = this.transformTestCountsData();
+    if (rows.length === 0) return null;
+
+    const now = new Date();
+    const y = now.getFullYear();
+    const m = now.getMonth() + 1;
+    const today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+    const yearStart = `${y}-01-01`;
+    const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
+
+    const labs = ['문정', '가산'];
+    return labs.map((lab) => {
+      const labRows = rows.filter(r => r.lab === lab);
+
+      const todayCount = labRows.filter(r => r.date === today)
+        .reduce((s, r) => s + r.count, 0);
+
+      const monthlyTotal = labRows.filter(r => r.date >= monthStart && r.date <= today)
+        .reduce((s, r) => s + r.count, 0);
+
+      const annualTotal = labRows.filter(r => r.date >= yearStart && r.date <= today)
+        .reduce((s, r) => s + r.count, 0);
+
+      const dailyMap = new Map();
+      labRows
+        .filter(r => {
+          const t = Date.parse(r.date);
+          return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
+        })
+        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
+      const recentDays = Array.from(dailyMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, total]) => ({ date, total }));
+
+      const deptMap = new Map();
+      labRows
+        .filter(r => r.date >= monthStart && r.date <= today)
+        .forEach(r => deptMap.set(r.department, (deptMap.get(r.department) || 0) + r.count));
+      const departments = Array.from(deptMap.entries()).map(([department, total]) => ({ department, total }));
+
+      return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
+    });
+  }
+
   // ============ 시험대상자 인원수 (Q4) ============
   async fetchSubjectsData() {
     if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_SUBJECTS) return null;

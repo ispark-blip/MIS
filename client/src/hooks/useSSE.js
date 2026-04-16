@@ -13,7 +13,7 @@ export function useSSE() {
       const [sales, quarterly, testCounts, subjects] = await Promise.all([
         api.get('/sales/overview', { params: { lab: s.selectedLab } }),
         api.get('/sales/quarterly', { params: { q: s.selectedQuarter, year: s.selectedYear, lab: s.selectedLab } }),
-        api.get('/test-counts', { params: { month: s.selectedMonth, year: s.selectedYear, lab: s.selectedLab } }),
+        api.get('/test-counts/summary'),
         api.get('/subjects/summary'),
       ]);
       useDashboardStore.setState({

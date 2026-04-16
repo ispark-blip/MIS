@@ -6,6 +6,20 @@ const { labs } = require('../config/departments');
 
 const router = express.Router();
 
+// GET /api/test-counts/summary - 연구소별 요약 (시험대상자 summary 와 동일 형식, 공개)
+router.get('/summary', (req, res) => {
+  const sheetsService = req.app.get('sheetsService');
+  const sheetSummary = sheetsService ? sheetsService.getCachedTestCountsSummary() : null;
+  if (sheetSummary) {
+    return res.json({
+      success: true,
+      data: sheetSummary,
+      meta: { timestamp: new Date().toISOString(), source: 'google-sheets' },
+    });
+  }
+  res.json({ success: true, data: [], meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
+});
+
 // GET /api/test-counts (공개)
 router.get('/', (req, res) => {
   const { month, year, lab = '전체', test_type } = req.query;
