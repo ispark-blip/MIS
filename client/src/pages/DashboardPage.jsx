@@ -39,7 +39,6 @@ export default function DashboardPage() {
   // 데이터 로드
   useEffect(() => {
     api.get('/sales/overview', { params: { lab: selectedLab, year: selectedYear } }).then(r => setSalesData(r.data.data)).catch(() => {});
-    api.get('/subjects/summary').then(r => setSubjectData(r.data.data)).catch(() => {});
   }, [selectedLab, selectedYear]);
 
   useEffect(() => {
@@ -48,9 +47,11 @@ export default function DashboardPage() {
   }, [selectedLab, selectedQuarter, selectedYear]);
 
   useEffect(() => {
-    api.get('/test-counts/summary')
+    api.get('/test-counts/summary', { params: { month: selectedMonth, year: selectedYear } })
       .then(r => setTestCountData(r.data.data)).catch(() => {});
-  }, []);
+    api.get('/subjects/summary', { params: { month: selectedMonth, year: selectedYear } })
+      .then(r => setSubjectData(r.data.data)).catch(() => {});
+  }, [selectedMonth, selectedYear]);
 
   return (
     <div className="h-screen flex flex-col bg-gray-50">

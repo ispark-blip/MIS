@@ -8,8 +8,11 @@ const router = express.Router();
 
 // GET /api/test-counts/summary - 대시보드용 (공개)
 router.get('/summary', (req, res) => {
+  const { month, year } = req.query;
+  const m = month ? parseInt(month) : undefined;
+  const y = year ? parseInt(year) : undefined;
   const sheetsService = req.app.get('sheetsService');
-  const sheetSummary = sheetsService ? sheetsService.getCachedTestCountsSummary() : null;
+  const sheetSummary = sheetsService ? sheetsService.getCachedTestCountsSummary(m, y) : null;
   if (sheetSummary) {
     return res.json({ success: true, data: sheetSummary, meta: { source: 'google-sheets' } });
   }

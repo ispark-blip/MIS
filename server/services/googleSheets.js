@@ -223,19 +223,31 @@ class GoogleSheetsService {
     });
   }
 
+  _computeDateBounds(targetMonth, targetYear) {
+    const now = new Date();
+    const y = targetYear || now.getFullYear();
+    const m = targetMonth || (now.getMonth() + 1);
+    const isCurrentMonth = (y === now.getFullYear() && m === now.getMonth() + 1);
+    let today;
+    if (isCurrentMonth) {
+      today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    } else {
+      const lastDay = new Date(y, m, 0).getDate();
+      today = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+    }
+    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+    const yearStart = `${y}-01-01`;
+    const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
+    return { today, monthStart, yearStart, thirtyDaysAgoMs };
+  }
+
   // 시험건수 summary - 부서별 집계 (오늘/월/연/최근30일)
-  getCachedTestCountsSummary() {
+  getCachedTestCountsSummary(targetMonth, targetYear) {
     if (!this.cache.testCounts) return null;
     const rows = this.transformTestCountsData();
     if (rows.length === 0) return null;
 
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
-    const yearStart = `${y}-01-01`;
-    const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
+    const { today, monthStart, yearStart, thirtyDaysAgoMs } = this._computeDateBounds(targetMonth, targetYear);
 
     // 부서별 그룹화 (부서명+연구소 조합 키)
     const deptMap = new Map();
@@ -304,7 +316,7 @@ class GoogleSheetsService {
   }
 
   // 시험대상자 summary (내부 시트 + 외부 동기화 데이터 병합)
-  getCachedSubjectsSummary() {
+  getCachedSubjectsSummary(targetMonth, targetYear) {
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
 
@@ -315,13 +327,7 @@ class GoogleSheetsService {
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
-    const now = new Date();
-    const y = now.getFullYear();
-    const m = now.getMonth() + 1;
-    const today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
-    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
-    const yearStart = `${y}-01-01`;
-    const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
+    const { today, monthStart, yearStart, thirtyDaysAgoMs } = this._computeDateBounds(targetMonth, targetYear);
 
     const labs = ['문정', '가산'];
     return labs.map(lab => {

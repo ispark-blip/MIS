@@ -43,16 +43,28 @@ router.get('/', (req, res) => {
 
 // GET /api/subjects/summary - 대시보드용 (공개)
 router.get('/summary', (req, res) => {
+  const { month, year } = req.query;
+  const targetMonth = month ? parseInt(month) : undefined;
+  const targetYear = year ? parseInt(year) : undefined;
   const sheetsService = req.app.get('sheetsService');
-  const sheetSummary = sheetsService ? sheetsService.getCachedSubjectsSummary() : null;
+  const sheetSummary = sheetsService ? sheetsService.getCachedSubjectsSummary(targetMonth, targetYear) : null;
   if (sheetSummary) {
     return res.json({ success: true, data: sheetSummary, meta: { source: 'google-sheets' } });
   }
 
-  const today = new Date().toISOString().split('T')[0];
   const now = new Date();
-  const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`;
-  const yearStart = `${now.getFullYear()}-01-01`;
+  const y = targetYear || now.getFullYear();
+  const m = targetMonth || (now.getMonth() + 1);
+  const isCurrentMonth = (y === now.getFullYear() && m === now.getMonth() + 1);
+  let today;
+  if (isCurrentMonth) {
+    today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+  } else {
+    const lastDay = new Date(y, m, 0).getDate();
+    today = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+  }
+  const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+  const yearStart = `${y}-01-01`;
 
   const labsList = ['문정', '가산'];
   const summary = labsList.map(lab => {
