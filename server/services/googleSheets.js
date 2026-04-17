@@ -238,7 +238,7 @@ class GoogleSheetsService {
     const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
     const yearStart = `${y}-01-01`;
     const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
-    return { today, monthStart, yearStart, thirtyDaysAgoMs };
+    return { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth };
   }
 
   // 시험건수 summary - 부서별 집계 (오늘/월/연/최근30일)
@@ -247,7 +247,7 @@ class GoogleSheetsService {
     const rows = this.transformTestCountsData();
     if (rows.length === 0) return null;
 
-    const { today, monthStart, yearStart, thirtyDaysAgoMs } = this._computeDateBounds(targetMonth, targetYear);
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
 
     // 부서별 그룹화 (부서명+연구소 조합 키)
     const deptMap = new Map();
@@ -258,8 +258,17 @@ class GoogleSheetsService {
     }
 
     return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
-      const todayCount = deptRows.filter(r => r.date === today)
+      let todayCount = deptRows.filter(r => r.date === today)
         .reduce((s, r) => s + r.count, 0);
+      let todayDate = today;
+
+      if (!isCurrentMonth && todayCount === 0) {
+        const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
+        if (monthRows.length > 0) {
+          todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
+          todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
+        }
+      }
 
       const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
         .reduce((s, r) => s + r.count, 0);
@@ -278,7 +287,7 @@ class GoogleSheetsService {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      return { department, lab, today: todayCount, monthlyTotal, annualTotal, recentDays };
+      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
     });
   }
 
@@ -330,13 +339,23 @@ class GoogleSheetsService {
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
-    const { today, monthStart, yearStart, thirtyDaysAgoMs } = this._computeDateBounds(targetMonth, targetYear);
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
 
     const labs = ['문정', '가산'];
     return labs.map(lab => {
       const labRows = allEntries.filter(r => r.lab === lab);
 
-      const todayCount = labRows.filter(r => r.date === today).reduce((s, r) => s + r.count, 0);
+      let todayCount = labRows.filter(r => r.date === today).reduce((s, r) => s + r.count, 0);
+      let todayDate = today;
+
+      if (!isCurrentMonth && todayCount === 0) {
+        const monthRows = labRows.filter(r => r.date >= monthStart && r.date <= today);
+        if (monthRows.length > 0) {
+          todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
+          todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
+        }
+      }
+
       const monthlyTotal = labRows.filter(r => r.date >= monthStart && r.date <= today).reduce((s, r) => s + r.count, 0);
       const annualTotal = labRows.filter(r => r.date >= yearStart && r.date <= today).reduce((s, r) => s + r.count, 0);
 
@@ -355,9 +374,9 @@ class GoogleSheetsService {
       const departments = Array.from(deptMap.entries()).map(([department, total]) => ({ department, total }));
 
       if (targetMonth) {
-        console.log(`[Sheets] 시험대상자 summary ${lab} ${targetYear||'?'}년${targetMonth}월: 오늘=${todayCount}, 월=${monthlyTotal}, 연=${annualTotal}, 부서=${departments.length}건, 최근=${recentDays.length}일`);
+        console.log(`[Sheets] 시험대상자 summary ${lab} ${targetYear||'?'}년${targetMonth}월: 일=${todayCount}(${todayDate}), 월=${monthlyTotal}, 연=${annualTotal}, 부서=${departments.length}건, 최근=${recentDays.length}일`);
       }
-      return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
+      return { lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays, departments };
     });
   }
 
