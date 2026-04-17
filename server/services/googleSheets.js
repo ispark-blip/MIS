@@ -241,58 +241,58 @@ class GoogleSheetsService {
     return { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth };
   }
 
-  // 시험건수 summary - 부서별 집계 (오늘/월/연/최근30일)
+  // 시험건수 summary - 시험대상자 데이터에서 자동 추출 우선 (행 1개 = 건수 1건)
   getCachedTestCountsSummary(targetMonth, targetYear) {
-    // 전용 시험건수 시트가 있으면 사용
-    if (this.cache.testCounts) {
-      const rows = this.transformTestCountsData();
-      if (rows.length > 0) {
-        const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
+    // 시험대상자 데이터에서 시험건수 자동 추출 (우선)
+    const derived = this._deriveTestCountsFromSubjects(targetMonth, targetYear);
+    if (derived) return derived;
 
-        const deptMap = new Map();
-        for (const r of rows) {
-          const key = `${r.lab}|${r.department}`;
-          if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
-          deptMap.get(key).rows.push(r);
-        }
+    // 폴백: 전용 시험건수 시트
+    if (!this.cache.testCounts) return null;
+    const rows = this.transformTestCountsData();
+    if (rows.length === 0) return null;
 
-        return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
-          let todayCount = deptRows.filter(r => r.date === today)
-            .reduce((s, r) => s + r.count, 0);
-          let todayDate = today;
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
 
-          if (!isCurrentMonth && todayCount === 0) {
-            const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
-            if (monthRows.length > 0) {
-              todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
-              todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
-            }
-          }
-
-          const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
-            .reduce((s, r) => s + r.count, 0);
-
-          const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
-            .reduce((s, r) => s + r.count, 0);
-
-          const dailyMap = new Map();
-          deptRows
-            .filter(r => {
-              const t = Date.parse(r.date);
-              return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
-            })
-            .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
-          const recentDays = Array.from(dailyMap.entries())
-            .sort((a, b) => a[0].localeCompare(b[0]))
-            .map(([date, total]) => ({ date, total }));
-
-          return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
-        });
-      }
+    const deptMap = new Map();
+    for (const r of rows) {
+      const key = `${r.lab}|${r.department}`;
+      if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
+      deptMap.get(key).rows.push(r);
     }
 
-    // 시험대상자 데이터에서 시험건수 자동 추출 (인원 있는 행 1개 = 시험 1건)
-    return this._deriveTestCountsFromSubjects(targetMonth, targetYear);
+    return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
+      let todayCount = deptRows.filter(r => r.date === today)
+        .reduce((s, r) => s + r.count, 0);
+      let todayDate = today;
+
+      if (!isCurrentMonth && todayCount === 0) {
+        const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
+        if (monthRows.length > 0) {
+          todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
+          todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
+        }
+      }
+
+      const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
+        .reduce((s, r) => s + r.count, 0);
+
+      const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
+        .reduce((s, r) => s + r.count, 0);
+
+      const dailyMap = new Map();
+      deptRows
+        .filter(r => {
+          const t = Date.parse(r.date);
+          return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
+        })
+        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
+      const recentDays = Array.from(dailyMap.entries())
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([date, total]) => ({ date, total }));
+
+      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
+    });
   }
 
   // 시험대상자 시트에서 시험건수 추출: 인원수가 있는 행 1개 = 시험건수 1건
