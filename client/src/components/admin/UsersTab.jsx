@@ -3,11 +3,6 @@ import api from '../../utils/api';
 import { Plus, UserCheck, UserX, Pencil } from 'lucide-react';
 
 const ROLE_LABELS = { admin: '관리자', manager: '매니저', staff: '일반' };
-const LABS = ['문정', '가산'];
-const DEPTS_BY_LAB = {
-  '문정': ['임상1팀', '임상2팀', '비임상팀', '경영지원팀'],
-  '가산': ['시험검사팀', '특수시험팀'],
-};
 
 export default function UsersTab() {
   const [users, setUsers] = useState([]);
@@ -15,6 +10,7 @@ export default function UsersTab() {
   const [msg, setMsg] = useState(null);
   const [showForm, setShowForm] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [deptConfig, setDeptConfig] = useState({ labs: ['문정', '가산'], departments: {} });
 
   const load = async () => {
     setLoading(true);
@@ -29,6 +25,11 @@ export default function UsersTab() {
   };
 
   useEffect(() => { load(); }, []);
+  useEffect(() => {
+    api.get('/config/departments')
+      .then(r => setDeptConfig(r.data.data || {}))
+      .catch(() => {});
+  }, []);
 
   const handleToggleActive = async (u) => {
     try {
@@ -63,6 +64,7 @@ export default function UsersTab() {
       {showForm && (
         <UserForm
           editing={editing}
+          deptConfig={deptConfig}
           onClose={() => setShowForm(false)}
           onSaved={() => { setShowForm(false); load(); setMsg({ type: 'ok', text: '저장되었습니다.' }); }}
         />
@@ -127,12 +129,16 @@ export default function UsersTab() {
   );
 }
 
-function UserForm({ editing, onClose, onSaved }) {
+function UserForm({ editing, deptConfig, onClose, onSaved }) {
+  const labs = deptConfig?.labs?.length ? deptConfig.labs : ['문정', '가산'];
+  const deptsBy = deptConfig?.departments || {};
+  const defaultLab = editing?.lab || labs[0];
+  const defaultDept = editing?.department || (deptsBy[defaultLab]?.[0] ?? '');
   const [form, setForm] = useState({
     employee_id: editing?.employee_id || '',
     name: editing?.name || '',
-    department: editing?.department || '임상1팀',
-    lab: editing?.lab || '문정',
+    department: defaultDept,
+    lab: defaultLab,
     role: editing?.role || 'staff',
     password: '',
     can_input_test_counts: editing?.can_input_test_counts ? true : false,
@@ -163,7 +169,7 @@ function UserForm({ editing, onClose, onSaved }) {
     }
   };
 
-  const deptOptions = DEPTS_BY_LAB[form.lab] || [];
+  const deptOptions = deptsBy[form.lab] || [];
 
   return (
     <form onSubmit={handleSubmit} className="border border-slate-300 rounded-lg p-4 bg-slate-50 space-y-3">
@@ -189,8 +195,8 @@ function UserForm({ editing, onClose, onSaved }) {
 
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">연구소 *</label>
-          <select value={form.lab} onChange={(e) => { update('lab', e.target.value); update('department', DEPTS_BY_LAB[e.target.value][0]); }} className="w-full px-2 py-1.5 border rounded">
-            {LABS.map(l => <option key={l} value={l}>{l}</option>)}
+          <select value={form.lab} onChange={(e) => { const nv = e.target.value; update('lab', nv); update('department', (deptsBy[nv] || [])[0] || ''); }} className="w-full px-2 py-1.5 border rounded">
+            {labs.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div>

@@ -4,10 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 import { ArrowLeft, Save } from 'lucide-react';
 
-const LABS = ['문정', '가산'];
-const DEPTS_BY_LAB = { '문정': ['문정 임상팀', '비임상', '원료개발팀'], '가산': ['가산 임상팀', '자외선실'] };
-const TEST_TYPES = ['HET-CAM', '첩포시험', '인체적용시험', '안자극시험', '광독성시험', '일반', '기타'];
-
 const pad2 = (n) => String(n).padStart(2, '0');
 
 export default function TestCountInputPage() {
@@ -16,19 +12,42 @@ export default function TestCountInputPage() {
   const now = new Date();
   const [year, setYear] = useState(now.getFullYear());
   const [month, setMonth] = useState(now.getMonth() + 1);
-  const [lab, setLab] = useState('문정');
-  const [department, setDepartment] = useState(DEPTS_BY_LAB['문정'][0]);
-  const [testType, setTestType] = useState(TEST_TYPES[0]);
-  const [counts, setCounts] = useState({});        // { 'YYYY-MM-DD': '숫자문자열' }
-  const [originals, setOriginals] = useState({});  // 변경 감지용 원본
+  const [deptConfig, setDeptConfig] = useState({ labs: ['문정', '가산'], departments: {}, testTypes: [] });
+  const [lab, setLab] = useState('');
+  const [department, setDepartment] = useState('');
+  const [testType, setTestType] = useState('');
+  const [counts, setCounts] = useState({});
+  const [originals, setOriginals] = useState({});
   const [fetching, setFetching] = useState(false);
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
+  const isAdmin = user?.role === 'admin';
   const daysInMonth = useMemo(() => new Date(year, month, 0).getDate(), [year, month]);
   const today = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
 
+  // 부서 config 로드 + 초기 lab/dept 설정 (사용자 소속 기준, admin은 첫번째)
+  useEffect(() => {
+    api.get('/config/departments').then(r => {
+      const cfg = r.data.data || {};
+      setDeptConfig(cfg);
+      const labs = cfg.labs || ['문정', '가산'];
+      const depts = cfg.departments || {};
+      const types = cfg.testTypes || [];
+      if (user) {
+        const initLab = isAdmin ? labs[0] : (user.lab || labs[0]);
+        const initDept = isAdmin
+          ? (depts[initLab]?.[0] || '')
+          : (user.department || depts[initLab]?.[0] || '');
+        setLab(initLab);
+        setDepartment(initDept);
+        setTestType(types[0] || '');
+      }
+    }).catch(() => {});
+  }, [user, isAdmin]);
+
   const loadData = async () => {
+    if (!lab || !department || !testType) return;
     setFetching(true);
     try {
       const r = await api.get('/test-counts', { params: { month, year, lab, test_type: testType } });
@@ -47,7 +66,7 @@ export default function TestCountInputPage() {
   };
 
   useEffect(() => {
-    if (user) loadData();
+    if (user && lab && department && testType) loadData();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [year, month, lab, department, testType, user]);
 
@@ -65,10 +84,14 @@ export default function TestCountInputPage() {
     </div>
   );
 
+  const labs = deptConfig.labs || ['문정', '가산'];
+  const depts = deptConfig.departments || {};
+  const testTypes = deptConfig.testTypes || [];
+
   const onLabChange = (v) => {
     setLab(v);
-    const depts = DEPTS_BY_LAB[v] || [];
-    if (!depts.includes(department)) setDepartment(depts[0] || '');
+    const list = depts[v] || [];
+    if (!list.includes(department)) setDepartment(list[0] || '');
   };
 
   const onCountChange = (date, value) => {
@@ -130,7 +153,7 @@ export default function TestCountInputPage() {
       <header className="h-14 bg-slate-800 text-white flex items-center px-4 gap-4 shrink-0">
         <button onClick={() => navigate('/dashboard')} className="hover:bg-slate-700 rounded-md p-1.5"><ArrowLeft size={18} /></button>
         <h1 className="font-bold">일일 시험건수 입력</h1>
-        <span className="ml-auto text-sm">{user.name}</span>
+        <span className="ml-auto text-sm">{user.name} · {user.lab}/{user.department}</span>
       </header>
 
       <main className="flex-1 p-4 md:p-6 max-w-5xl w-full mx-auto space-y-4">
@@ -150,27 +173,29 @@ export default function TestCountInputPage() {
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">연구소</label>
-              <select value={lab} onChange={(e) => onLabChange(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg">
-                {LABS.map((l) => <option key={l} value={l}>{l}</option>)}
+              <label className="block text-xs font-medium text-gray-600 mb-1">연구소 {!isAdmin && <span className="text-gray-400">(소속 고정)</span>}</label>
+              <select value={lab} onChange={(e) => onLabChange(e.target.value)} disabled={!isAdmin}
+                className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100 disabled:text-gray-700">
+                {labs.map((l) => <option key={l} value={l}>{l}</option>)}
               </select>
             </div>
             <div>
-              <label className="block text-xs font-medium text-gray-600 mb-1">부서</label>
-              <select value={department} onChange={(e) => setDepartment(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg">
-                {(DEPTS_BY_LAB[lab] || []).map((d) => <option key={d} value={d}>{d}</option>)}
+              <label className="block text-xs font-medium text-gray-600 mb-1">부서 {!isAdmin && <span className="text-gray-400">(소속 고정)</span>}</label>
+              <select value={department} onChange={(e) => setDepartment(e.target.value)} disabled={!isAdmin}
+                className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100 disabled:text-gray-700">
+                {(depts[lab] || []).map((d) => <option key={d} value={d}>{d}</option>)}
               </select>
             </div>
             <div>
               <label className="block text-xs font-medium text-gray-600 mb-1">시험유형</label>
               <select value={testType} onChange={(e) => setTestType(e.target.value)} className="w-full px-2 py-1.5 border rounded-lg">
-                {TEST_TYPES.map((t) => <option key={t} value={t}>{t}</option>)}
+                {testTypes.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </div>
           </div>
           <div className="mt-3 flex items-center justify-between text-sm">
             <span className="text-gray-500">
-              {year}년 {month}월 · {lab} / {department} / {testType} · 합계 {totalCount}건
+              {year}년 {month}월 · {lab} / {department} / {testType} · 합계 {totalCount.toLocaleString('ko-KR')}건
               {changedCount > 0 && <span className="ml-2 text-orange-600 font-medium">· 변경 {changedCount}건</span>}
             </span>
             <button
@@ -232,7 +257,7 @@ export default function TestCountInputPage() {
         <div className="text-xs text-gray-500 leading-relaxed">
           · 건수가 있는 날짜에만 입력하세요. 빈 칸으로 둔 날짜는 저장되지 않습니다.<br />
           · 기존 입력값을 수정하려면 숫자를 변경 후 "전체 저장"을 클릭하세요.<br />
-          · 연구소/부서/시험유형 조합별로 별도 저장됩니다. 다른 시험유형은 상단 필터에서 변경 후 입력하세요.
+          · {isAdmin ? '관리자는 모든 연구소/부서를 선택할 수 있습니다.' : '소속된 연구소/부서의 데이터만 입력할 수 있습니다. 다른 부서 입력이 필요하면 관리자에게 문의하세요.'}
         </div>
       </main>
     </div>

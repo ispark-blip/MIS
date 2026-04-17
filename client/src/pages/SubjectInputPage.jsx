@@ -4,9 +4,6 @@ import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
 import { ArrowLeft, Plus, Pencil, X, Save } from 'lucide-react';
 
-const LABS = ['문정', '가산'];
-const DEPTS_BY_LAB = { '문정': ['문정 임상팀', '비임상', '원료개발팀'], '가산': ['가산 임상팀', '자외선실'] };
-
 export default function SubjectInputPage() {
   const { user, loading } = useAuth();
   const navigate = useNavigate();
@@ -18,6 +15,11 @@ export default function SubjectInputPage() {
   const [showForm, setShowForm] = useState(false);
   const [editRow, setEditRow] = useState(null);
   const [msg, setMsg] = useState(null);
+  const [deptConfig, setDeptConfig] = useState({ labs: ['문정', '가산'], departments: {} });
+
+  useEffect(() => {
+    api.get('/config/departments').then(r => setDeptConfig(r.data.data || {})).catch(() => {});
+  }, []);
 
   const loadData = async () => {
     setFetching(true);
@@ -82,6 +84,8 @@ export default function SubjectInputPage() {
             defaultYear={year}
             defaultMonth={month}
             editing={editRow}
+            user={user}
+            deptConfig={deptConfig}
             onClose={() => { setShowForm(false); setEditRow(null); }}
             onSaved={(text) => { setShowForm(false); setEditRow(null); loadData(); setMsg({ type: 'ok', text }); }}
             onError={(text) => setMsg({ type: 'err', text })}
@@ -130,13 +134,18 @@ export default function SubjectInputPage() {
   );
 }
 
-function SubjectForm({ defaultYear, defaultMonth, editing, onClose, onSaved, onError }) {
+function SubjectForm({ defaultYear, defaultMonth, editing, user, deptConfig, onClose, onSaved, onError }) {
   const pad2 = n => String(n).padStart(2, '0');
+  const isAdmin = user?.role === 'admin';
+  const labs = deptConfig?.labs || ['문정', '가산'];
+  const depts = deptConfig?.departments || {};
+  const initLab = editing?.lab || (isAdmin ? labs[0] : (user?.lab || labs[0]));
+  const initDept = editing?.department || (isAdmin ? (depts[initLab]?.[0] || '') : (user?.department || depts[initLab]?.[0] || ''));
   const defaultDate = editing?.date || `${defaultYear}-${pad2(defaultMonth)}-${pad2(new Date().getDate())}`;
   const [form, setForm] = useState({
     date: defaultDate,
-    lab: editing?.lab || '문정',
-    department: editing?.department || DEPTS_BY_LAB['문정'][0],
+    lab: initLab,
+    department: initDept,
     subject_count: editing?.subject_count ?? '',
     study_name: editing?.study_name || '',
   });
@@ -144,7 +153,7 @@ function SubjectForm({ defaultYear, defaultMonth, editing, onClose, onSaved, onE
 
   const update = (k, v) => setForm(f => {
     const next = { ...f, [k]: v };
-    if (k === 'lab') next.department = DEPTS_BY_LAB[v]?.[0] || '';
+    if (k === 'lab') next.department = depts[v]?.[0] || '';
     return next;
   });
 
@@ -166,7 +175,8 @@ function SubjectForm({ defaultYear, defaultMonth, editing, onClose, onSaved, onE
     }
   };
 
-  const deptOptions = DEPTS_BY_LAB[form.lab] || [];
+  const deptOptions = depts[form.lab] || [];
+  const lockDeptLab = !isAdmin && !editing; // 신규 입력 시 non-admin은 본인 소속으로 고정
 
   return (
     <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border p-4 space-y-3">
@@ -181,16 +191,16 @@ function SubjectForm({ defaultYear, defaultMonth, editing, onClose, onSaved, onE
             className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100" />
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">연구소</label>
-          <select value={form.lab} onChange={e => update('lab', e.target.value)} disabled={!!editing}
-            className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100">
-            {LABS.map(l => <option key={l} value={l}>{l}</option>)}
+          <label className="block text-xs font-medium text-gray-600 mb-1">연구소 {lockDeptLab && <span className="text-gray-400">(소속 고정)</span>}</label>
+          <select value={form.lab} onChange={e => update('lab', e.target.value)} disabled={!!editing || lockDeptLab}
+            className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100 disabled:text-gray-700">
+            {labs.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
         <div>
-          <label className="block text-xs font-medium text-gray-600 mb-1">부서</label>
-          <select value={form.department} onChange={e => update('department', e.target.value)} disabled={!!editing}
-            className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100">
+          <label className="block text-xs font-medium text-gray-600 mb-1">부서 {lockDeptLab && <span className="text-gray-400">(소속 고정)</span>}</label>
+          <select value={form.department} onChange={e => update('department', e.target.value)} disabled={!!editing || lockDeptLab}
+            className="w-full px-2 py-1.5 border rounded-lg disabled:bg-gray-100 disabled:text-gray-700">
             {deptOptions.map(d => <option key={d} value={d}>{d}</option>)}
           </select>
         </div>
@@ -205,6 +215,9 @@ function SubjectForm({ defaultYear, defaultMonth, editing, onClose, onSaved, onE
             className="w-full px-2 py-1.5 border rounded-lg" placeholder="선택사항" />
         </div>
       </div>
+      {!isAdmin && !editing && (
+        <p className="text-xs text-gray-500">· 소속된 {user?.lab}/{user?.department}의 데이터만 입력할 수 있습니다.</p>
+      )}
       <div className="flex justify-end gap-2">
         <button type="button" onClick={onClose} className="px-4 py-1.5 border rounded-lg hover:bg-gray-100 text-sm">취소</button>
         <button type="submit" disabled={saving} className="flex items-center gap-2 px-4 py-1.5 bg-slate-800 text-white rounded-lg hover:bg-slate-700 disabled:opacity-50 text-sm">

@@ -79,6 +79,14 @@ router.post('/', requireAuth, requirePermission('can_input_test_counts'), async 
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '유효하지 않은 연구소입니다.' } });
   }
 
+  // 소속 부서 외 입력 차단 (admin 제외)
+  const sessionUser = req.session.user;
+  if (sessionUser.role !== 'admin') {
+    if (sessionUser.lab !== lab || sessionUser.department !== department) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '소속된 연구소/부서의 데이터만 입력할 수 있습니다.' } });
+    }
+  }
+
   // 구글시트에 기록 (연동 시)
   const sheetsService = req.app.get('sheetsService');
   if (sheetsService) {
@@ -135,6 +143,13 @@ router.put('/:rowOrId', requireAuth, requirePermission('can_input_test_counts'),
     if (!target) {
       return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '해당 데이터를 찾을 수 없습니다.' } });
     }
+    // 소속 부서 외 수정 차단 (admin 제외)
+    const sessionUser = req.session.user;
+    if (sessionUser.role !== 'admin') {
+      if (sessionUser.lab !== target.lab || sessionUser.department !== target.department) {
+        return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '소속된 연구소/부서의 데이터만 수정할 수 있습니다.' } });
+      }
+    }
     const ok = await sheetsService.updateTestCountRow(target.sheetRow, {
       date: date || target.date,
       lab: lab || target.lab,
@@ -155,6 +170,14 @@ router.put('/:rowOrId', requireAuth, requirePermission('can_input_test_counts'),
   const id = parseInt(rowOrId);
   const existing = db.prepare('SELECT * FROM daily_test_counts WHERE id = ?').get(id);
   if (!existing) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '데이터를 찾을 수 없습니다.' } });
+
+  // 소속 부서 외 수정 차단 (admin 제외)
+  const sessionUser = req.session.user;
+  if (sessionUser.role !== 'admin') {
+    if (sessionUser.lab !== existing.lab || sessionUser.department !== existing.department) {
+      return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '소속된 연구소/부서의 데이터만 수정할 수 있습니다.' } });
+    }
+  }
 
   db.prepare('UPDATE daily_test_counts SET count = ?, notes = ?, submitted_at = CURRENT_TIMESTAMP WHERE id = ?').run(countNum, notes || null, id);
 

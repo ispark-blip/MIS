@@ -51,6 +51,7 @@ app.use('/api/subjects', require('./routes/subjects'));
 app.use('/api/events', require('./routes/events'));
 app.use('/api/admin', require('./routes/admin'));
 app.use('/api/settings', require('./routes/settings'));
+app.use('/api/config', require('./routes/config'));
 
 // 업로드 파일 서빙 (로고 등)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'data', 'uploads')));
