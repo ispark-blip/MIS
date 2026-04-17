@@ -26,4 +26,10 @@ module.exports = {
 
   POLLING_INTERVAL_MS: parseInt(process.env.POLLING_INTERVAL) || 30000,
   CACHE_TTL_MS: 25000,
+
+  // 외부 시험대상자 시트 (자동 동기화)
+  EXTERNAL_MJ_SHEET_ID: process.env.EXTERNAL_MJ_SHEET_ID || '1joJpN5F4H4nNCCkd36JuHnHIHzNyyLXwk_Lt07YZXKE',
+  EXTERNAL_GS_SHEET_ID: process.env.EXTERNAL_GS_SHEET_ID || '1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow',
+  EXTERNAL_GS_TAB_NAME: process.env.EXTERNAL_GS_TAB_NAME || '____________26년 1월부터 시험일정_________________의 사본',
+  EXTERNAL_SYNC_INTERVAL_MS: parseInt(process.env.EXTERNAL_SYNC_INTERVAL) || 30 * 60 * 1000,
 };

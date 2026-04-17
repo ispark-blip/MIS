@@ -38,7 +38,8 @@ function parseSheetDate(v) {
 
 class GoogleSheetsService {
   constructor(eventEmitter) {
-    this.cache = { sales: null, testCounts: null, subjects: null };
+    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [] };
+    this._lastExternalSync = 0;
     this.eventEmitter = eventEmitter;
     this.sheets = null;
     this.initialized = false;
@@ -302,11 +303,17 @@ class GoogleSheetsService {
       .filter(r => r.date && r._raw && r._raw[0]);
   }
 
-  // 시험대상자 summary 를 시트 기반으로 집계 (연구소별 오늘/월누적/연누적/최근30일/부서별)
+  // 시험대상자 summary (내부 시트 + 외부 동기화 데이터 병합)
   getCachedSubjectsSummary() {
-    if (!this.cache.subjects) return null;
-    const rows = this.transformSubjectsData();
-    if (rows.length === 0) return null;
+    const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
+    const externalRows = this.cache.externalSubjects || [];
+
+    if (internalRows.length === 0 && externalRows.length === 0) return null;
+
+    const allEntries = [
+      ...internalRows.map(r => ({ date: r.date, lab: r.lab, department: r.department, count: r.subject_count })),
+      ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
+    ];
 
     const now = new Date();
     const y = now.getFullYear();
@@ -317,39 +324,146 @@ class GoogleSheetsService {
     const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
 
     const labs = ['문정', '가산'];
-    return labs.map((lab) => {
-      const labRows = rows.filter(r => r.lab === lab);
+    return labs.map(lab => {
+      const labRows = allEntries.filter(r => r.lab === lab);
 
-      const todayCount = labRows.filter(r => r.date === today)
-        .reduce((s, r) => s + r.subject_count, 0);
+      const todayCount = labRows.filter(r => r.date === today).reduce((s, r) => s + r.count, 0);
+      const monthlyTotal = labRows.filter(r => r.date >= monthStart && r.date <= today).reduce((s, r) => s + r.count, 0);
+      const annualTotal = labRows.filter(r => r.date >= yearStart && r.date <= today).reduce((s, r) => s + r.count, 0);
 
-      const monthlyTotal = labRows.filter(r => r.date >= monthStart && r.date <= today)
-        .reduce((s, r) => s + r.subject_count, 0);
-
-      const annualTotal = labRows.filter(r => r.date >= yearStart && r.date <= today)
-        .reduce((s, r) => s + r.subject_count, 0);
-
-      // 최근 30일 (날짜별 합계)
       const dailyMap = new Map();
       labRows
-        .filter(r => {
-          const t = Date.parse(r.date);
-          return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
-        })
-        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.subject_count));
+        .filter(r => { const t = Date.parse(r.date); return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today; })
+        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
       const recentDays = Array.from(dailyMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      // 당월 부서별 누적
       const deptMap = new Map();
       labRows
         .filter(r => r.date >= monthStart && r.date <= today)
-        .forEach(r => deptMap.set(r.department, (deptMap.get(r.department) || 0) + r.subject_count));
+        .forEach(r => deptMap.set(r.department, (deptMap.get(r.department) || 0) + r.count));
       const departments = Array.from(deptMap.entries()).map(([department, total]) => ({ department, total }));
 
       return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
     });
+  }
+
+  // ============ 외부 시험대상자 동기화 ============
+  async syncExternalSubjects() {
+    if (!this.initialized) return;
+    const now = Date.now();
+    if (now - this._lastExternalSync < sheetsConfig.EXTERNAL_SYNC_INTERVAL_MS) return;
+    this._lastExternalSync = now;
+
+    const results = [];
+    await this._syncMjSubjects(results);
+    await this._syncGsSubjects(results);
+
+    const oldHash = JSON.stringify(this.cache.externalSubjects);
+    this.cache.externalSubjects = results;
+    if (JSON.stringify(results) !== oldHash) {
+      console.log(`[Sheets] 외부 시험대상자 동기화: 문정+가산 ${results.length}건`);
+      if (this.eventEmitter) this.eventEmitter('subjects-update', { source: 'external' });
+    }
+  }
+
+  async _syncMjSubjects(results) {
+    const sheetId = sheetsConfig.EXTERNAL_MJ_SHEET_ID;
+    if (!sheetId) return;
+
+    const tabs = this._getMjTabNames();
+    const dailyTotals = new Map();
+
+    for (const { name: tabName, year } of tabs) {
+      try {
+        const res = await this.sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `'${tabName}'!A:C`,
+          valueRenderOption: 'FORMATTED_VALUE',
+        });
+        for (const row of (res.data.values || [])) {
+          if (!row || row.length < 3) continue;
+          const dateCell = String(row[0] || '').trim();
+          const countCell = String(row[2] || '').trim();
+          if (!dateCell || !countCell) continue;
+          if (dateCell === '날짜' || countCell === '인원' || countCell === '미정') continue;
+
+          const date = this._parseMjDate(dateCell, year);
+          if (!date) continue;
+          const count = parseInt(countCell.replace(/[^0-9]/g, ''));
+          if (isNaN(count) || count <= 0) continue;
+
+          dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+        }
+      } catch (err) {
+        if (!err.message?.includes('Unable to parse range')) {
+          console.warn(`[Sheets] 문정 외부동기화 실패 (${tabName}):`, err.message);
+        }
+      }
+    }
+
+    for (const [date, total] of dailyTotals) {
+      results.push({ date, lab: '문정', subject_count: total });
+    }
+  }
+
+  async _syncGsSubjects(results) {
+    const sheetId = sheetsConfig.EXTERNAL_GS_SHEET_ID;
+    const tabName = sheetsConfig.EXTERNAL_GS_TAB_NAME;
+    if (!sheetId || !tabName) return;
+
+    try {
+      const res = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `'${tabName}'!B:H`,
+        valueRenderOption: 'FORMATTED_VALUE',
+      });
+      const dailyTotals = new Map();
+
+      for (const row of (res.data.values || [])) {
+        if (!row || row.length < 7) continue;
+        const dateCell = String(row[0] || '').trim();
+        const countCell = String(row[6] || '').trim();
+        if (!dateCell || !countCell) continue;
+
+        const date = parseSheetDate(dateCell);
+        if (!date) continue;
+        const count = parseInt(countCell.replace(/[^0-9]/g, ''));
+        if (isNaN(count) || count <= 0) continue;
+
+        dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+      }
+
+      for (const [date, total] of dailyTotals) {
+        results.push({ date, lab: '가산', subject_count: total });
+      }
+    } catch (err) {
+      console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
+    }
+  }
+
+  _getMjTabNames() {
+    const now = new Date();
+    const tabs = [];
+    const y1 = now.getFullYear() % 100;
+    const m1 = now.getMonth() + 1;
+    tabs.push({ name: `응대배정표_${y1}년${m1}월`, year: now.getFullYear() });
+    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+    const y2 = prev.getFullYear() % 100;
+    const m2 = prev.getMonth() + 1;
+    tabs.push({ name: `응대배정표_${y2}년${m2}월`, year: prev.getFullYear() });
+    return tabs;
+  }
+
+  _parseMjDate(cellValue, year) {
+    if (!cellValue) return null;
+    const m = String(cellValue).match(/^(\d{1,2})\/(\d{1,2})/);
+    if (!m) return null;
+    const month = parseInt(m[1]);
+    const day = parseInt(m[2]);
+    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
+    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
   }
 
   // ============ 쓰기: 시험건수 ============
@@ -481,6 +595,8 @@ class GoogleSheetsService {
       }
 
       if (changed) console.log('[Sheets] 캐시 갱신');
+
+      await this.syncExternalSubjects();
     } catch (err) {
       console.error('[Sheets] 폴링 에러:', err.message);
     }
