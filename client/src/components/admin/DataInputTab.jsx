@@ -7,7 +7,7 @@ const DEPTS_BY_LAB = {
   '문정': ['임상1팀', '임상2팀', '비임상팀', '경영지원팀'],
   '가산': ['시험검사팀', '특수시험팀'],
 };
-const TEST_TYPES = ['HET-CAM', '첩포시험', '인체적용시험', '안자극시험', '광독성시험', '기타'];
+const TEST_TYPES = ['HET-CAM', '첩포시험', '인체적용시험', '안자극시험', '광독성시험', '일반', '기타'];
 
 export default function DataInputTab() {
   const [mode, setMode] = useState('test'); // 'test' | 'subject'

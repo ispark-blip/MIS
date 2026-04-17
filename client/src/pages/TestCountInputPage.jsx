@@ -6,7 +6,7 @@ import { ArrowLeft, Plus, Pencil, X, Save } from 'lucide-react';
 
 const LABS = ['문정', '가산'];
 const DEPTS_BY_LAB = { '문정': ['문정 임상팀', '비임상', '원료개발팀'], '가산': ['가산 임상팀', '자외선실'] };
-const TEST_TYPES = ['HET-CAM', '첩포시험', '인체적용시험', '안자극시험', '광독성시험', '기타'];
+const TEST_TYPES = ['HET-CAM', '첩포시험', '인체적용시험', '안자극시험', '광독성시험', '일반', '기타'];
 
 export default function TestCountInputPage() {
   const { user, loading } = useAuth();
