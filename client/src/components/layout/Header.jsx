@@ -1,4 +1,4 @@
-import { RefreshCw, LogOut, LogIn, Menu, X, Settings } from 'lucide-react';
+import { RefreshCw, LogOut, LogIn, Menu, X, Settings, ClipboardList, Users } from 'lucide-react';
 import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDashboardStore from '../../stores/dashboardStore';
@@ -98,10 +98,16 @@ export default function Header({ onLogout }) {
           <span className="hidden lg:inline">{connectionStatus === 'connected' ? '실시간' : '연결끊김'}</span>
         </div>
 
-        {/* 사용자 / 로그인·로그아웃 */}
+        {/* 데이터 입력 / 사용자 */}
         <div className="flex items-center gap-2 md:ml-2">
           {user ? (
             <>
+              <button onClick={() => navigate('/input/test-counts')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험건수 입력">
+                <ClipboardList size={18} />
+              </button>
+              <button onClick={() => navigate('/input/subjects')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험대상자 입력">
+                <Users size={18} />
+              </button>
               <span className="text-sm">{user.name}</span>
               {user.role === 'admin' && (
                 <button onClick={() => navigate('/admin')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="관리자 페이지">

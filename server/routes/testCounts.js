@@ -1,66 +1,63 @@
 const express = require('express');
 const db = require('../config/database');
-const { requireAuth, requireRole } = require('../middleware/auth');
+const { requireAuth } = require('../middleware/auth');
 const { logAccess } = require('../middleware/logger');
 const { labs } = require('../config/departments');
 
 const router = express.Router();
 
-// GET /api/test-counts/summary - 연구소별 요약 (시험대상자 summary 와 동일 형식, 공개)
+// GET /api/test-counts/summary - 대시보드용 (공개)
 router.get('/summary', (req, res) => {
   const sheetsService = req.app.get('sheetsService');
   const sheetSummary = sheetsService ? sheetsService.getCachedTestCountsSummary() : null;
   if (sheetSummary) {
-    return res.json({
-      success: true,
-      data: sheetSummary,
-      meta: { timestamp: new Date().toISOString(), source: 'google-sheets' },
-    });
+    return res.json({ success: true, data: sheetSummary, meta: { source: 'google-sheets' } });
   }
-  res.json({ success: true, data: [], meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
+  res.json({ success: true, data: [], meta: { source: 'sqlite' } });
 });
 
-// GET /api/test-counts (공개)
+// GET /api/test-counts - 월간 목록 (공개)
 router.get('/', (req, res) => {
   const { month, year, lab = '전체', test_type } = req.query;
   const now = new Date();
   const m = parseInt(month) || (now.getMonth() + 1);
   const y = parseInt(year) || now.getFullYear();
 
-  // 1순위: Google Sheets 데이터 (연동된 경우)
   const sheetsService = req.app.get('sheetsService');
-  const sheetRows = sheetsService ? sheetsService.getCachedTestCounts(m, y, lab, test_type) : null;
-
-  if (sheetRows && sheetRows.length > 0) {
-    return res.json({
-      success: true,
-      data: sheetRows,
-      meta: { timestamp: new Date().toISOString(), source: 'google-sheets' },
+  if (sheetsService) {
+    const all = sheetsService.transformTestCountsData();
+    const filtered = all.filter(r => {
+      const [ry, rm] = r.date.split('-').map(Number);
+      if (ry !== y || rm !== m) return false;
+      if (lab !== '전체' && r.lab !== lab) return false;
+      if (test_type && test_type !== '전체' && r.test_type !== test_type) return false;
+      return true;
     });
+    if (filtered.length > 0) {
+      return res.json({
+        success: true,
+        data: filtered.map(r => ({ id: r.id, sheetRow: r.sheetRow, date: r.date, lab: r.lab, department: r.department, test_type: r.test_type, count: r.count, submitted_by: r.submitted_by, notes: r.notes })),
+        meta: { source: 'google-sheets' },
+      });
+    }
   }
 
-  // 2순위: SQLite 데이터 (폼 입력 내역)
   const startDate = `${y}-${String(m).padStart(2, '0')}-01`;
   const endDate = m === 12 ? `${y + 1}-01-01` : `${y}-${String(m + 1).padStart(2, '0')}-01`;
-
   let query = 'SELECT * FROM daily_test_counts WHERE date >= ? AND date < ?';
   const params = [startDate, endDate];
-
   if (lab !== '전체') { query += ' AND lab = ?'; params.push(lab); }
   if (test_type && test_type !== '전체') { query += ' AND test_type = ?'; params.push(test_type); }
-  query += ' ORDER BY date, department';
+  query += ' ORDER BY date DESC, department';
 
-  const rows = db.prepare(query).all(...params);
-
-  res.json({ success: true, data: rows, meta: { timestamp: new Date().toISOString(), source: 'sqlite' } });
+  res.json({ success: true, data: db.prepare(query).all(...params), meta: { source: 'sqlite' } });
 });
 
-// POST /api/test-counts (관리자만)
-router.post('/', requireAuth, requireRole('admin'), (req, res) => {
+// POST /api/test-counts - 로그인 사용자 (구글시트 우선 기록)
+router.post('/', requireAuth, async (req, res) => {
   const { date, department, lab, test_type, count, notes } = req.body;
-  const submitted_by = req.session.user.employee_id;
+  const submitted_by = req.session.user.name || req.session.user.employee_id;
 
-  // 입력 검증
   if (!date || !department || !lab || !test_type || count === undefined) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '필수 항목을 모두 입력해주세요.' } });
   }
@@ -70,26 +67,31 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '건수는 0~9999 사이 정수여야 합니다.' } });
   }
 
-  if (test_type.length > 50) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '시험유형은 50자 이내여야 합니다.' } });
-  }
-
-  // 날짜 유효성 체크 (관리자는 과거/미래 모두 입력 가능, 포맷만 확인)
   const inputDate = new Date(date);
   if (isNaN(inputDate.getTime())) {
-    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '시험일자 형식이 올바르지 않습니다 (YYYY-MM-DD).' } });
+    return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '일자 형식이 올바르지 않습니다.' } });
   }
 
   if (!labs.includes(lab)) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '유효하지 않은 연구소입니다.' } });
   }
 
-  // 기존 데이터 조회 (감사 추적용)
+  // 구글시트에 기록 (연동 시)
+  const sheetsService = req.app.get('sheetsService');
+  if (sheetsService) {
+    const ok = await sheetsService.appendTestCount({ date, lab, department, test_type, count: countNum, submitted_by, notes });
+    if (!ok) {
+      return res.status(500).json({ success: false, error: { code: 'SHEETS_ERROR', message: 'Google Sheets 기록 실패. 잠시 후 다시 시도해주세요.' } });
+    }
+    logAccess(req, 'submit', `시험건수 입력(시트): ${date} ${department} ${test_type} ${countNum}건`);
+    return res.status(201).json({ success: true, data: { message: '입력 완료 (Google Sheets)' } });
+  }
+
+  // 구글시트 미연동 → SQLite 폴백
   const existing = db.prepare(
     'SELECT * FROM daily_test_counts WHERE date = ? AND department = ? AND lab = ? AND test_type = ?'
   ).get(date, department, lab, test_type);
 
-  // UPSERT
   const result = db.prepare(`
     INSERT INTO daily_test_counts (date, department, lab, test_type, count, submitted_by, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?)
@@ -99,64 +101,68 @@ router.post('/', requireAuth, requireRole('admin'), (req, res) => {
 
   const recordId = existing ? existing.id : result.lastInsertRowid;
 
-  // 감사 로그 기록
   db.prepare(`
     INSERT INTO test_count_audit_log (test_count_id, date, department, lab, test_type, old_count, new_count, action, changed_by, notes)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
   `).run(recordId, date, department, lab, test_type, existing ? existing.count : null, countNum, existing ? 'UPDATE' : 'INSERT', submitted_by, notes || null);
 
-  // SSE broadcast
   const sseManager = req.app.get('sseManager');
-  if (sseManager) sseManager.broadcast('test-count-update', { month: new Date(date).getMonth() + 1, year: new Date(date).getFullYear() });
+  if (sseManager) sseManager.broadcast('test-count-update', {});
+  logAccess(req, 'submit', `시험건수 입력(DB): ${date} ${department} ${test_type} ${countNum}건`);
 
-  logAccess(req, 'submit', `시험건수 입력: ${date} ${department} ${test_type} ${countNum}건`);
-
-  res.status(201).json({ success: true, data: { id: recordId, message: '입력 완료' } });
+  res.status(201).json({ success: true, data: { id: recordId, message: '입력 완료 (SQLite)' } });
 });
 
-// PUT /api/test-counts/:id
-router.put('/:id', requireAuth, requireRole('admin', 'manager'), (req, res) => {
-  const { id } = req.params;
-  const { count, notes } = req.body;
-
-  const existing = db.prepare('SELECT * FROM daily_test_counts WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '데이터를 찾을 수 없습니다.' } });
+// PUT /api/test-counts/:sheetRow - 시트 행 수정 (로그인 사용자)
+router.put('/:rowOrId', requireAuth, async (req, res) => {
+  const { rowOrId } = req.params;
+  const { date, department, lab, test_type, count, notes } = req.body;
+  const submitted_by = req.session.user.name || req.session.user.employee_id;
 
   const countNum = parseInt(count);
   if (isNaN(countNum) || countNum < 0 || countNum > 9999) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '건수는 0~9999 사이 정수여야 합니다.' } });
   }
 
+  // 구글시트 행 수정
+  const sheetsService = req.app.get('sheetsService');
+  if (sheetsService && rowOrId.startsWith('sheet-')) {
+    const all = sheetsService.transformTestCountsData();
+    const target = all.find(r => r.id === rowOrId);
+    if (!target) {
+      return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '해당 데이터를 찾을 수 없습니다.' } });
+    }
+    const ok = await sheetsService.updateTestCountRow(target.sheetRow, {
+      date: date || target.date,
+      lab: lab || target.lab,
+      department: department || target.department,
+      test_type: test_type || target.test_type,
+      count: countNum,
+      submitted_by,
+      notes: notes !== undefined ? notes : target.notes,
+    });
+    if (!ok) {
+      return res.status(500).json({ success: false, error: { code: 'SHEETS_ERROR', message: 'Google Sheets 수정 실패.' } });
+    }
+    logAccess(req, 'update', `시험건수 수정(시트 행${target.sheetRow}): ${countNum}건`);
+    return res.json({ success: true, data: { message: '수정 완료 (Google Sheets)' } });
+  }
+
+  // SQLite 수정
+  const id = parseInt(rowOrId);
+  const existing = db.prepare('SELECT * FROM daily_test_counts WHERE id = ?').get(id);
+  if (!existing) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '데이터를 찾을 수 없습니다.' } });
+
   db.prepare('UPDATE daily_test_counts SET count = ?, notes = ?, submitted_at = CURRENT_TIMESTAMP WHERE id = ?').run(countNum, notes || null, id);
 
   db.prepare(`
     INSERT INTO test_count_audit_log (test_count_id, date, department, lab, test_type, old_count, new_count, action, changed_by)
     VALUES (?, ?, ?, ?, ?, ?, ?, 'UPDATE', ?)
-  `).run(id, existing.date, existing.department, existing.lab, existing.test_type, existing.count, countNum, req.session.user.employee_id);
+  `).run(id, existing.date, existing.department, existing.lab, existing.test_type, existing.count, countNum, submitted_by);
 
   const sseManager = req.app.get('sseManager');
   if (sseManager) sseManager.broadcast('test-count-update', {});
-
   res.json({ success: true, data: { message: '수정 완료' } });
-});
-
-// DELETE /api/test-counts/:id
-router.delete('/:id', requireAuth, requireRole('admin'), (req, res) => {
-  const { id } = req.params;
-  const existing = db.prepare('SELECT * FROM daily_test_counts WHERE id = ?').get(id);
-  if (!existing) return res.status(404).json({ success: false, error: { code: 'NOT_FOUND', message: '데이터를 찾을 수 없습니다.' } });
-
-  db.prepare(`
-    INSERT INTO test_count_audit_log (test_count_id, date, department, lab, test_type, old_count, new_count, action, changed_by)
-    VALUES (?, ?, ?, ?, ?, ?, 0, 'DELETE', ?)
-  `).run(id, existing.date, existing.department, existing.lab, existing.test_type, existing.count, req.session.user.employee_id);
-
-  db.prepare('DELETE FROM daily_test_counts WHERE id = ?').run(id);
-
-  const sseManager = req.app.get('sseManager');
-  if (sseManager) sseManager.broadcast('test-count-update', {});
-
-  res.json({ success: true, data: { message: '삭제 완료' } });
 });
 
 module.exports = router;

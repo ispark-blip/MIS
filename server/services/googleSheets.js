@@ -60,7 +60,7 @@ class GoogleSheetsService {
       const { google } = require('googleapis');
       const auth = new google.auth.GoogleAuth({
         keyFile: sheetsConfig.CREDENTIALS_PATH,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets.readonly'],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
       this.sheets = google.sheets({ version: 'v4', auth });
       this.initialized = true;
@@ -190,9 +190,12 @@ class GoogleSheetsService {
 
   transformTestCountsData() {
     // 시트 컬럼: 날짜 | 연구소 | 부서 | 시험유형 | 건수 | 입력자 | 비고
+    // sheetRow: 헤더가 1행이므로 데이터 시작은 2행, idx=0 → row 2
     return (this.cache.testCounts || [])
-      .filter(row => row && row[0] && (row[4] !== undefined && row[4] !== ''))
       .map((row, idx) => ({
+        _raw: row,
+        _idx: idx,
+        sheetRow: idx + 2,
         id: `sheet-${idx + 1}`,
         date: parseSheetDate(row[0]),
         lab: String(row[1] || '').trim(),
@@ -202,7 +205,7 @@ class GoogleSheetsService {
         submitted_by: String(row[5] || '').trim(),
         notes: row[6] ? String(row[6]) : null,
       }))
-      .filter(r => r.date); // 날짜 파싱 실패 행 제외
+      .filter(r => r.date && r._raw && r._raw[0] && (r._raw[4] !== undefined && r._raw[4] !== ''));
   }
 
   getCachedTestCounts(month, year, lab, testType) {
@@ -284,16 +287,19 @@ class GoogleSheetsService {
 
   transformSubjectsData() {
     // 시트 컬럼: 날짜 | 연구소 | 부서 | 인원수 | 과제명 | ...
+    // sheetRow: 헤더가 1행이므로 데이터 시작은 2행, idx=0 → row 2
     return (this.cache.subjects || [])
-      .filter(row => row && row[0])
-      .map(row => ({
+      .map((row, idx) => ({
+        _raw: row,
+        sheetRow: idx + 2,
+        id: `sheet-${idx + 1}`,
         date: parseSheetDate(row[0]),
         lab: String(row[1] || '').trim(),
         department: String(row[2] || '').trim(),
         subject_count: toNum(row[3]),
-        study_name: row[4] ? String(row[4]) : null,
+        study_name: row[4] ? String(row[4]).trim() : '',
       }))
-      .filter(r => r.date);
+      .filter(r => r.date && r._raw && r._raw[0]);
   }
 
   // 시험대상자 summary 를 시트 기반으로 집계 (연구소별 오늘/월누적/연누적/최근30일/부서별)
@@ -344,6 +350,92 @@ class GoogleSheetsService {
 
       return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
     });
+  }
+
+  // ============ 쓰기: 시험건수 ============
+  // 시트 컬럼: 날짜 | 연구소 | 부서 | 시험유형 | 건수 | 입력자 | 비고
+  async appendTestCount({ date, lab, department, test_type, count, submitted_by, notes }) {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_TESTCOUNTS) return false;
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_TESTCOUNTS,
+        range: sheetsConfig.SHEET_RANGE_TESTCOUNTS,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [[date, lab, department, test_type, count, submitted_by || '', notes || '']],
+        },
+      });
+      await this.fetchAndUpdate();
+      return true;
+    } catch (err) {
+      console.error('[Sheets] 시험건수 추가 실패:', err.message);
+      return false;
+    }
+  }
+
+  async updateTestCountRow(rowIndex, { date, lab, department, test_type, count, submitted_by, notes }) {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_TESTCOUNTS) return false;
+    try {
+      const sheetName = (sheetsConfig.SHEET_RANGE_TESTCOUNTS || '시험건수!A2:G').split('!')[0];
+      const range = `${sheetName}!A${rowIndex}:G${rowIndex}`;
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_TESTCOUNTS,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[date, lab, department, test_type, count, submitted_by || '', notes || '']],
+        },
+      });
+      await this.fetchAndUpdate();
+      return true;
+    } catch (err) {
+      console.error('[Sheets] 시험건수 수정 실패:', err.message);
+      return false;
+    }
+  }
+
+  // ============ 쓰기: 시험대상자 ============
+  // 시트 컬럼: 날짜 | 연구소 | 부서 | 인원수 | 과제명
+  async appendSubject({ date, lab, department, subject_count, study_name }) {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_SUBJECTS) return false;
+    try {
+      await this.sheets.spreadsheets.values.append({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_SUBJECTS,
+        range: sheetsConfig.SHEET_RANGE_SUBJECTS,
+        valueInputOption: 'USER_ENTERED',
+        insertDataOption: 'INSERT_ROWS',
+        requestBody: {
+          values: [[date, lab, department, subject_count, study_name || '']],
+        },
+      });
+      await this.fetchAndUpdate();
+      return true;
+    } catch (err) {
+      console.error('[Sheets] 시험대상자 추가 실패:', err.message);
+      return false;
+    }
+  }
+
+  async updateSubjectRow(rowIndex, { date, lab, department, subject_count, study_name }) {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_SUBJECTS) return false;
+    try {
+      const sheetName = (sheetsConfig.SHEET_RANGE_SUBJECTS || '시험대상자현황!A2:G').split('!')[0];
+      const range = `${sheetName}!A${rowIndex}:E${rowIndex}`;
+      await this.sheets.spreadsheets.values.update({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_SUBJECTS,
+        range,
+        valueInputOption: 'USER_ENTERED',
+        requestBody: {
+          values: [[date, lab, department, subject_count, study_name || '']],
+        },
+      });
+      await this.fetchAndUpdate();
+      return true;
+    } catch (err) {
+      console.error('[Sheets] 시험대상자 수정 실패:', err.message);
+      return false;
+    }
   }
 
   // ============ 폴링 ============
