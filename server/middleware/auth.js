@@ -26,4 +26,17 @@ function requireRole(...roles) {
   };
 }
 
-module.exports = { requireAuth, requireRole };
+function requirePermission(permKey) {
+  return (req, res, next) => {
+    const u = req.session?.user;
+    if (!u) {
+      return res.status(401).json({ success: false, error: { code: 'UNAUTHORIZED', message: '로그인이 필요합니다.' } });
+    }
+    if (u.role === 'admin' || u[permKey]) {
+      return next();
+    }
+    return res.status(403).json({ success: false, error: { code: 'FORBIDDEN', message: '해당 기능에 대한 권한이 없습니다.' } });
+  };
+}
+
+module.exports = { requireAuth, requireRole, requirePermission };

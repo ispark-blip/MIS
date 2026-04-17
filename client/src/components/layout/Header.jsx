@@ -102,12 +102,16 @@ export default function Header({ onLogout }) {
         <div className="flex items-center gap-2 md:ml-2">
           {user ? (
             <>
-              <button onClick={() => navigate('/input/test-counts')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험건수 입력">
-                <ClipboardList size={18} />
-              </button>
-              <button onClick={() => navigate('/input/subjects')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험대상자 입력">
-                <Users size={18} />
-              </button>
+              {(user.role === 'admin' || user.can_input_test_counts) && (
+                <button onClick={() => navigate('/input/test-counts')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험건수 입력">
+                  <ClipboardList size={18} />
+                </button>
+              )}
+              {(user.role === 'admin' || user.can_input_subjects) && (
+                <button onClick={() => navigate('/input/subjects')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="시험대상자 입력">
+                  <Users size={18} />
+                </button>
+              )}
               <span className="text-sm">{user.name}</span>
               {user.role === 'admin' && (
                 <button onClick={() => navigate('/admin')} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="관리자 페이지">

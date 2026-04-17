@@ -80,7 +80,8 @@ export default function UsersTab() {
               <th className="py-2 px-2">이름</th>
               <th className="py-2 px-2">부서</th>
               <th className="py-2 px-2">연구소</th>
-              <th className="py-2 px-2">권한</th>
+              <th className="py-2 px-2">역할</th>
+              <th className="py-2 px-2">입력 권한</th>
               <th className="py-2 px-2">상태</th>
               <th className="py-2 px-2 text-right">관리</th>
             </tr>
@@ -96,6 +97,13 @@ export default function UsersTab() {
                   <span className={`px-2 py-0.5 rounded text-xs ${u.role === 'admin' ? 'bg-purple-100 text-purple-700' : u.role === 'manager' ? 'bg-blue-100 text-blue-700' : 'bg-gray-100 text-gray-700'}`}>
                     {ROLE_LABELS[u.role] || u.role}
                   </span>
+                </td>
+                <td className="py-2 px-2">
+                  <div className="flex flex-col gap-0.5 text-xs">
+                    {(u.role === 'admin' || u.can_input_test_counts) ? <span className="text-blue-600">시험건수</span> : null}
+                    {(u.role === 'admin' || u.can_input_subjects) ? <span className="text-teal-600">시험대상자</span> : null}
+                    {u.role !== 'admin' && !u.can_input_test_counts && !u.can_input_subjects && <span className="text-gray-400">없음</span>}
+                  </div>
                 </td>
                 <td className="py-2 px-2">
                   {u.is_active ? <span className="text-green-600">활성</span> : <span className="text-gray-400">비활성</span>}
@@ -127,6 +135,8 @@ function UserForm({ editing, onClose, onSaved }) {
     lab: editing?.lab || '문정',
     role: editing?.role || 'staff',
     password: '',
+    can_input_test_counts: editing?.can_input_test_counts ? true : false,
+    can_input_subjects: editing?.can_input_subjects ? true : false,
   });
   const [saving, setSaving] = useState(false);
   const [err, setErr] = useState('');
@@ -138,7 +148,7 @@ function UserForm({ editing, onClose, onSaved }) {
     setSaving(true); setErr('');
     try {
       if (editing) {
-        const body = { name: form.name, department: form.department, lab: form.lab, role: form.role };
+        const body = { name: form.name, department: form.department, lab: form.lab, role: form.role, can_input_test_counts: form.can_input_test_counts, can_input_subjects: form.can_input_subjects };
         if (form.password) body.password = form.password;
         await api.put(`/admin/users/${editing.id}`, body);
       } else {
@@ -201,6 +211,20 @@ function UserForm({ editing, onClose, onSaved }) {
         <div>
           <label className="block text-xs font-medium text-gray-600 mb-1">비밀번호 {editing ? '(변경 시에만 입력)' : '*'}</label>
           <input type="password" value={form.password} onChange={(e) => update('password', e.target.value)} className="w-full px-2 py-1.5 border rounded" />
+        </div>
+      </div>
+
+      <div className="border-t pt-3">
+        <label className="block text-xs font-medium text-gray-600 mb-2">입력 권한 {form.role === 'admin' && <span className="text-purple-600">(관리자는 자동 부여)</span>}</label>
+        <div className="flex gap-6">
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.role === 'admin' || form.can_input_test_counts} disabled={form.role === 'admin'} onChange={(e) => update('can_input_test_counts', e.target.checked)} className="rounded" />
+            시험건수 입력
+          </label>
+          <label className="flex items-center gap-2 text-sm">
+            <input type="checkbox" checked={form.role === 'admin' || form.can_input_subjects} disabled={form.role === 'admin'} onChange={(e) => update('can_input_subjects', e.target.checked)} className="rounded" />
+            시험대상자 입력
+          </label>
         </div>
       </div>
 

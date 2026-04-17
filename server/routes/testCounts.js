@@ -1,6 +1,6 @@
 const express = require('express');
 const db = require('../config/database');
-const { requireAuth } = require('../middleware/auth');
+const { requireAuth, requirePermission } = require('../middleware/auth');
 const { logAccess } = require('../middleware/logger');
 const { labs } = require('../config/departments');
 
@@ -53,8 +53,8 @@ router.get('/', (req, res) => {
   res.json({ success: true, data: db.prepare(query).all(...params), meta: { source: 'sqlite' } });
 });
 
-// POST /api/test-counts - 로그인 사용자 (구글시트 우선 기록)
-router.post('/', requireAuth, async (req, res) => {
+// POST /api/test-counts - 시험건수 입력 권한 필요
+router.post('/', requireAuth, requirePermission('can_input_test_counts'), async (req, res) => {
   const { date, department, lab, test_type, count, notes } = req.body;
   const submitted_by = req.session.user.name || req.session.user.employee_id;
 
@@ -113,8 +113,8 @@ router.post('/', requireAuth, async (req, res) => {
   res.status(201).json({ success: true, data: { id: recordId, message: '입력 완료 (SQLite)' } });
 });
 
-// PUT /api/test-counts/:sheetRow - 시트 행 수정 (로그인 사용자)
-router.put('/:rowOrId', requireAuth, async (req, res) => {
+// PUT /api/test-counts/:sheetRow - 시험건수 수정 권한 필요
+router.put('/:rowOrId', requireAuth, requirePermission('can_input_test_counts'), async (req, res) => {
   const { rowOrId } = req.params;
   const { date, department, lab, test_type, count, notes } = req.body;
   const submitted_by = req.session.user.name || req.session.user.employee_id;

@@ -32,6 +32,8 @@ db.exec(`
     role TEXT NOT NULL DEFAULT 'staff',
     password_hash TEXT NOT NULL,
     is_active INTEGER NOT NULL DEFAULT 1,
+    can_input_test_counts INTEGER NOT NULL DEFAULT 0,
+    can_input_subjects INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
     updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
   );
@@ -130,6 +132,19 @@ const defaultSettings = [
 ];
 const insertSetting = db.prepare('INSERT OR IGNORE INTO app_settings (key, value) VALUES (?, ?)');
 for (const [k, v] of defaultSettings) insertSetting.run(k, v);
+
+// 기존 users 테이블에 권한 컬럼이 없으면 추가 (마이그레이션)
+const cols = db.prepare("PRAGMA table_info(users)").all().map(c => c.name);
+if (!cols.includes('can_input_test_counts')) {
+  db.exec("ALTER TABLE users ADD COLUMN can_input_test_counts INTEGER NOT NULL DEFAULT 0");
+  console.log('[DB] users 테이블에 can_input_test_counts 컬럼 추가');
+}
+if (!cols.includes('can_input_subjects')) {
+  db.exec("ALTER TABLE users ADD COLUMN can_input_subjects INTEGER NOT NULL DEFAULT 0");
+  console.log('[DB] users 테이블에 can_input_subjects 컬럼 추가');
+}
+// admin 역할은 기본 권한 부여
+db.prepare("UPDATE users SET can_input_test_counts = 1, can_input_subjects = 1 WHERE role = 'admin' AND can_input_test_counts = 0").run();
 
 console.log('[DB] 데이터베이스 초기화 완료:', DB_PATH);
 db.close();

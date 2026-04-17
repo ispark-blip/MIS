@@ -29,6 +29,8 @@ router.post('/login', (req, res) => {
     department: user.department,
     lab: user.lab,
     role: user.role,
+    can_input_test_counts: user.can_input_test_counts,
+    can_input_subjects: user.can_input_subjects,
   };
   req.session.lastActivity = Date.now();
 

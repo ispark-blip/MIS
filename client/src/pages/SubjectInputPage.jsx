@@ -33,6 +33,17 @@ export default function SubjectInputPage() {
   if (loading) return <div className="min-h-screen flex items-center justify-center text-gray-400">로딩 중...</div>;
   if (!user) { window.location.href = '/login?next=/input/subjects'; return null; }
 
+  const hasPermission = user.role === 'admin' || user.can_input_subjects;
+  if (!hasPermission) return (
+    <div className="min-h-screen bg-gray-50 flex flex-col">
+      <header className="h-14 bg-slate-800 text-white flex items-center px-4 gap-4 shrink-0">
+        <button onClick={() => navigate('/dashboard')} className="hover:bg-slate-700 rounded-md p-1.5"><ArrowLeft size={18} /></button>
+        <h1 className="font-bold">시험대상자 인원수 입력</h1>
+      </header>
+      <div className="flex-1 flex items-center justify-center"><p className="text-gray-500">시험대상자 입력 권한이 없습니다. 관리자에게 문의하세요.</p></div>
+    </div>
+  );
+
   const totalCount = rows.reduce((s, r) => s + (r.subject_count || 0), 0);
 
   return (
