@@ -243,52 +243,120 @@ class GoogleSheetsService {
 
   // 시험건수 summary - 부서별 집계 (오늘/월/연/최근30일)
   getCachedTestCountsSummary(targetMonth, targetYear) {
-    if (!this.cache.testCounts) return null;
-    const rows = this.transformTestCountsData();
-    if (rows.length === 0) return null;
+    // 전용 시험건수 시트가 있으면 사용
+    if (this.cache.testCounts) {
+      const rows = this.transformTestCountsData();
+      if (rows.length > 0) {
+        const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
+
+        const deptMap = new Map();
+        for (const r of rows) {
+          const key = `${r.lab}|${r.department}`;
+          if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
+          deptMap.get(key).rows.push(r);
+        }
+
+        return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
+          let todayCount = deptRows.filter(r => r.date === today)
+            .reduce((s, r) => s + r.count, 0);
+          let todayDate = today;
+
+          if (!isCurrentMonth && todayCount === 0) {
+            const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
+            if (monthRows.length > 0) {
+              todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
+              todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
+            }
+          }
+
+          const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
+            .reduce((s, r) => s + r.count, 0);
+
+          const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
+            .reduce((s, r) => s + r.count, 0);
+
+          const dailyMap = new Map();
+          deptRows
+            .filter(r => {
+              const t = Date.parse(r.date);
+              return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
+            })
+            .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
+          const recentDays = Array.from(dailyMap.entries())
+            .sort((a, b) => a[0].localeCompare(b[0]))
+            .map(([date, total]) => ({ date, total }));
+
+          return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
+        });
+      }
+    }
+
+    // 시험대상자 데이터에서 시험건수 자동 추출 (인원 있는 행 1개 = 시험 1건)
+    return this._deriveTestCountsFromSubjects(targetMonth, targetYear);
+  }
+
+  // 시험대상자 시트에서 시험건수 추출: 인원수가 있는 행 1개 = 시험건수 1건
+  _deriveTestCountsFromSubjects(targetMonth, targetYear) {
+    const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
+    const externalRows = this.cache.externalSubjects || [];
+
+    if (internalRows.length === 0 && externalRows.length === 0) return null;
 
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
 
-    // 부서별 그룹화 (부서명+연구소 조합 키)
-    const deptMap = new Map();
-    for (const r of rows) {
-      const key = `${r.lab}|${r.department}`;
-      if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
-      deptMap.get(key).rows.push(r);
+    // 내부 시트: 인원수 > 0인 행 1개 = 시험 1건
+    // 외부 동기화: 일별 test_count (행 수) 이미 집계됨
+    const testEntries = [];
+    for (const r of internalRows) {
+      if (r.subject_count > 0) {
+        testEntries.push({ date: r.date, lab: r.lab });
+      }
+    }
+    for (const r of externalRows) {
+      const tc = r.test_count || 1;
+      for (let i = 0; i < tc; i++) {
+        testEntries.push({ date: r.date, lab: r.lab });
+      }
     }
 
-    return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
-      let todayCount = deptRows.filter(r => r.date === today)
-        .reduce((s, r) => s + r.count, 0);
+    if (testEntries.length === 0) return null;
+
+    const labs = ['문정', '가산'];
+    const result = labs.map(lab => {
+      const labEntries = testEntries.filter(e => e.lab === lab);
+
+      let todayCount = labEntries.filter(e => e.date === today).length;
       let todayDate = today;
 
       if (!isCurrentMonth && todayCount === 0) {
-        const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
-        if (monthRows.length > 0) {
-          todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
-          todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
+        const monthEntries = labEntries.filter(e => e.date >= monthStart && e.date <= today);
+        if (monthEntries.length > 0) {
+          todayDate = monthEntries.reduce((max, e) => e.date > max ? e.date : max, monthEntries[0].date);
+          todayCount = monthEntries.filter(e => e.date === todayDate).length;
         }
       }
 
-      const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
-        .reduce((s, r) => s + r.count, 0);
-
-      const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
-        .reduce((s, r) => s + r.count, 0);
+      const monthlyTotal = labEntries.filter(e => e.date >= monthStart && e.date <= today).length;
+      const annualTotal = labEntries.filter(e => e.date >= yearStart && e.date <= today).length;
 
       const dailyMap = new Map();
-      deptRows
-        .filter(r => {
-          const t = Date.parse(r.date);
-          return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
+      labEntries
+        .filter(e => {
+          const t = Date.parse(e.date);
+          return !isNaN(t) && t >= thirtyDaysAgoMs && e.date <= today;
         })
-        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
+        .forEach(e => dailyMap.set(e.date, (dailyMap.get(e.date) || 0) + 1));
       const recentDays = Array.from(dailyMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
+      return { department: lab, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
     });
+
+    if (targetMonth) {
+      console.log(`[Sheets] 시험건수(대상자→건수 자동추출) ${targetYear||'?'}년${targetMonth}월: ${result.map(r => `${r.lab}=${r.monthlyTotal}건`).join(', ')}`);
+    }
+    return result;
   }
 
   // ============ 시험대상자 인원수 (Q4) ============
@@ -417,6 +485,7 @@ class GoogleSheetsService {
     }
 
     const dailyTotals = new Map();
+    const rowCounts = new Map();
 
     for (const tabName of sheetTabs) {
       if (!tabName.includes('배정표')) continue;
@@ -460,6 +529,7 @@ class GoogleSheetsService {
 
           const date = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+          rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
           parsed++;
         }
         console.log(`[Sheets] 문정 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, ${skipped}행 건너뜀, 연도범위=${yearInfo.startYear}~${yearInfo.endYear}`);
@@ -476,7 +546,7 @@ class GoogleSheetsService {
     console.log(`[Sheets] 문정 월별 분포:`, JSON.stringify(monthCounts));
 
     for (const [date, total] of dailyTotals) {
-      results.push({ date, lab: '문정', subject_count: total });
+      results.push({ date, lab: '문정', subject_count: total, test_count: rowCounts.get(date) || 0 });
     }
   }
 
@@ -508,7 +578,8 @@ class GoogleSheetsService {
       });
       const rows = res.data.values || [];
       const dailyTotals = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, shortRow = 0;
+      const rowCounts = new Map();
+      let parsed = 0, dateFail = 0, countMissing = 0;
 
       for (const row of rows) {
         if (!row || row.length < 1) continue;
@@ -528,6 +599,7 @@ class GoogleSheetsService {
         if (isNaN(count) || count <= 0) { countMissing++; continue; }
 
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+        rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
         parsed++;
       }
 
@@ -541,7 +613,7 @@ class GoogleSheetsService {
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
-        results.push({ date, lab: '가산', subject_count: total });
+        results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
       }
     } catch (err) {
       console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
