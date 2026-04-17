@@ -4,6 +4,7 @@ import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getDeptColor } from '../../utils/deptColors';
 
 const LAB_COLORS = { '문정': '#14b8a6', '가산': '#6366f1' };
+const fmt = (n) => Number(n || 0).toLocaleString('ko-KR');
 
 export default function SubjectCards({ data }) {
   const [expanded, setExpanded] = useState(null);
@@ -20,10 +21,10 @@ export default function SubjectCards({ data }) {
               <h4 className="font-bold text-2xl" style={{ color: LAB_COLORS[lab.lab] }}>{lab.lab}연구소</h4>
               <div className="flex items-baseline gap-4 mt-2">
                 <span className="text-4xl font-bold">
-                  {lab.today}<span className="text-lg text-gray-500 ml-1">명</span>
+                  {fmt(lab.today)}<span className="text-lg text-gray-500 ml-1">명</span>
                 </span>
-                <span className="text-base text-gray-500">월 {lab.monthlyTotal}명</span>
-                <span className="text-base text-gray-500">연 {lab.annualTotal}명</span>
+                <span className="text-base text-gray-500">월 {fmt(lab.monthlyTotal)}명</span>
+                <span className="text-base text-gray-500">연 {fmt(lab.annualTotal)}명</span>
               </div>
             </div>
             <div className="flex flex-col items-end gap-1">
@@ -53,7 +54,7 @@ export default function SubjectCards({ data }) {
                   {lab.departments.map((d, i) => (
                     <tr key={d.department} className="border-t border-gray-100">
                       <td className="py-1.5 font-semibold" style={{ color: getDeptColor(d.department, i) }}>{d.department}</td>
-                      <td className="text-right py-1.5 font-medium">{d.total}명</td>
+                      <td className="text-right py-1.5 font-medium">{fmt(d.total)}명</td>
                     </tr>
                   ))}
                 </tbody>

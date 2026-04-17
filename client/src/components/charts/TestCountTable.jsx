@@ -1,6 +1,8 @@
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { getDeptColor } from '../../utils/deptColors';
 
+const fmt = (n) => Number(n || 0).toLocaleString('ko-KR');
+
 export default function TestCountTable({ data }) {
   if (!Array.isArray(data) || data.length === 0) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
@@ -18,10 +20,10 @@ export default function TestCountTable({ data }) {
                 <div className="text-sm text-gray-400 mt-0.5">{d.lab}연구소</div>
                 <div className="flex items-baseline gap-3 mt-2 flex-wrap">
                   <span className="text-4xl font-bold">
-                    {d.today}<span className="text-lg text-gray-500 ml-1">건</span>
+                    {fmt(d.today)}<span className="text-lg text-gray-500 ml-1">건</span>
                   </span>
-                  <span className="text-base text-gray-500">월 {d.monthlyTotal}</span>
-                  <span className="text-base text-gray-500">연 {d.annualTotal}</span>
+                  <span className="text-base text-gray-500">월 {fmt(d.monthlyTotal)}</span>
+                  <span className="text-base text-gray-500">연 {fmt(d.annualTotal)}</span>
                 </div>
               </div>
               {/* 미니 라인 차트 */}
