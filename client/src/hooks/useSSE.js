@@ -11,10 +11,10 @@ export function useSSE() {
     const s = store();
     try {
       const [sales, quarterly, testCounts, subjects] = await Promise.all([
-        api.get('/sales/overview', { params: { lab: s.selectedLab } }),
+        api.get('/sales/overview', { params: { lab: s.selectedLab, year: s.selectedYear } }),
         api.get('/sales/quarterly', { params: { q: s.selectedQuarter, year: s.selectedYear, lab: s.selectedLab } }),
-        api.get('/test-counts/summary'),
-        api.get('/subjects/summary'),
+        api.get('/test-counts/summary', { params: { month: s.selectedMonth, year: s.selectedYear } }),
+        api.get('/subjects/summary', { params: { month: s.selectedMonth, year: s.selectedYear } }),
       ]);
       useDashboardStore.setState({
         salesData: sales.data.data,

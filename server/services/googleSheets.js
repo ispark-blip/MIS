@@ -320,7 +320,10 @@ class GoogleSheetsService {
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
 
-    if (internalRows.length === 0 && externalRows.length === 0) return null;
+    if (internalRows.length === 0 && externalRows.length === 0) {
+      if (targetMonth) console.log(`[Sheets] 시험대상자 summary 요청 ${targetYear||'?'}년${targetMonth}월: 내부=${internalRows.length}, 외부=${externalRows.length} → null 반환`);
+      return null;
+    }
 
     const allEntries = [
       ...internalRows.map(r => ({ date: r.date, lab: r.lab, department: r.department, count: r.subject_count })),
@@ -351,6 +354,9 @@ class GoogleSheetsService {
         .forEach(r => deptMap.set(r.department, (deptMap.get(r.department) || 0) + r.count));
       const departments = Array.from(deptMap.entries()).map(([department, total]) => ({ department, total }));
 
+      if (targetMonth) {
+        console.log(`[Sheets] 시험대상자 summary ${lab} ${targetYear||'?'}년${targetMonth}월: 오늘=${todayCount}, 월=${monthlyTotal}, 연=${annualTotal}, 부서=${departments.length}건, 최근=${recentDays.length}일`);
+      }
       return { lab, today: todayCount, monthlyTotal, annualTotal, recentDays, departments };
     });
   }
@@ -442,6 +448,13 @@ class GoogleSheetsService {
         console.warn(`[Sheets] 문정 외부동기화 실패 (${tabName}):`, err.message);
       }
     }
+
+    const monthCounts = {};
+    for (const [date] of dailyTotals) {
+      const ym = date.slice(0, 7);
+      monthCounts[ym] = (monthCounts[ym] || 0) + 1;
+    }
+    console.log(`[Sheets] 문정 월별 분포:`, JSON.stringify(monthCounts));
 
     for (const [date, total] of dailyTotals) {
       results.push({ date, lab: '문정', subject_count: total });
