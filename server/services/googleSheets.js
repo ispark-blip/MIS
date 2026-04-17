@@ -378,16 +378,34 @@ class GoogleSheetsService {
     const sheetId = sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
 
-    const tabs = this._getMjTabNames();
+    let sheetTabs;
+    try {
+      const meta = await this.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties.title',
+      });
+      sheetTabs = meta.data.sheets.map(s => s.properties.title);
+    } catch (err) {
+      console.warn('[Sheets] 문정 시트 탭 목록 조회 실패:', err.message);
+      return;
+    }
+
     const dailyTotals = new Map();
 
-    for (const { name: tabName, year } of tabs) {
+    for (const tabName of sheetTabs) {
+      if (!tabName.includes('배정표')) continue;
+      const yearInfo = this._parseMjTabYear(tabName);
+      if (!yearInfo) continue;
+
       try {
         const res = await this.sheets.spreadsheets.values.get({
           spreadsheetId: sheetId,
           range: `'${tabName}'!A:C`,
           valueRenderOption: 'FORMATTED_VALUE',
         });
+        let currentYear = yearInfo.startYear;
+        let lastMonth = yearInfo.startMonth;
+
         for (const row of (res.data.values || [])) {
           if (!row || row.length < 3) continue;
           const dateCell = String(row[0] || '').trim();
@@ -395,17 +413,25 @@ class GoogleSheetsService {
           if (!dateCell || !countCell) continue;
           if (dateCell === '날짜' || countCell === '인원' || countCell === '미정') continue;
 
-          const date = this._parseMjDate(dateCell, year);
-          if (!date) continue;
+          const md = dateCell.match(/^(\d{1,2})\/(\d{1,2})/);
+          if (!md) continue;
+          const month = parseInt(md[1]);
+          const day = parseInt(md[2]);
+          if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+
+          if (yearInfo.isRange && month < lastMonth && lastMonth >= 10 && month <= 3) {
+            currentYear++;
+          }
+          lastMonth = month;
+
           const count = parseInt(countCell.replace(/[^0-9]/g, ''));
           if (isNaN(count) || count <= 0) continue;
 
+          const date = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
         }
       } catch (err) {
-        if (!err.message?.includes('Unable to parse range')) {
-          console.warn(`[Sheets] 문정 외부동기화 실패 (${tabName}):`, err.message);
-        }
+        console.warn(`[Sheets] 문정 외부동기화 실패 (${tabName}):`, err.message);
       }
     }
 
@@ -423,19 +449,20 @@ class GoogleSheetsService {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
         range: `'${tabName}'!B:H`,
-        valueRenderOption: 'FORMATTED_VALUE',
+        valueRenderOption: 'UNFORMATTED_VALUE',
       });
       const dailyTotals = new Map();
 
       for (const row of (res.data.values || [])) {
-        if (!row || row.length < 7) continue;
-        const dateCell = String(row[0] || '').trim();
-        const countCell = String(row[6] || '').trim();
-        if (!dateCell || !countCell) continue;
+        if (!row || row.length < 1) continue;
+        const dateRaw = row[0];
+        const countRaw = row.length >= 7 ? row[6] : undefined;
+        if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
+        if (countRaw === undefined || countRaw === null || countRaw === '') continue;
 
-        const date = parseSheetDate(dateCell);
+        const date = parseSheetDate(dateRaw);
         if (!date) continue;
-        const count = parseInt(countCell.replace(/[^0-9]/g, ''));
+        const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
         if (isNaN(count) || count <= 0) continue;
 
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
@@ -449,27 +476,22 @@ class GoogleSheetsService {
     }
   }
 
-  _getMjTabNames() {
-    const now = new Date();
-    const tabs = [];
-    const y1 = now.getFullYear() % 100;
-    const m1 = now.getMonth() + 1;
-    tabs.push({ name: `응대배정표_${y1}년${m1}월`, year: now.getFullYear() });
-    const prev = new Date(now.getFullYear(), now.getMonth() - 1, 1);
-    const y2 = prev.getFullYear() % 100;
-    const m2 = prev.getMonth() + 1;
-    tabs.push({ name: `응대배정표_${y2}년${m2}월`, year: prev.getFullYear() });
-    return tabs;
-  }
-
-  _parseMjDate(cellValue, year) {
-    if (!cellValue) return null;
-    const m = String(cellValue).match(/^(\d{1,2})\/(\d{1,2})/);
-    if (!m) return null;
-    const month = parseInt(m[1]);
-    const day = parseInt(m[2]);
-    if (month < 1 || month > 12 || day < 1 || day > 31) return null;
-    return `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+  _parseMjTabYear(tabName) {
+    const range = tabName.match(/(\d{2})년(\d{1,2})월[~\-](\d{2})년(\d{1,2})월/);
+    if (range) {
+      return {
+        startYear: 2000 + parseInt(range[1]), startMonth: parseInt(range[2]),
+        endYear: 2000 + parseInt(range[3]), endMonth: parseInt(range[4]),
+        isRange: true,
+      };
+    }
+    const single = tabName.match(/(\d{2})년(\d{1,2})월/);
+    if (single) {
+      const year = 2000 + parseInt(single[1]);
+      const month = parseInt(single[2]);
+      return { startYear: year, startMonth: month, endYear: year, endMonth: month, isRange: false };
+    }
+    return null;
   }
 
   // ============ 쓰기: 시험건수 ============
