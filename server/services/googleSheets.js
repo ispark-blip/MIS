@@ -591,7 +591,8 @@ class GoogleSheetsService {
       const rows = res.data.values || [];
       const dailyTotals = new Map();
       const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0;
+      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0, dateRegression = 0;
+      let maxDateSeen = '';
 
       for (const row of rows) {
         if (!row || row.length < 1) continue;
@@ -600,6 +601,11 @@ class GoogleSheetsService {
 
         const date = parseSheetDate(dateRaw);
         if (!date) { dateFail++; continue; }
+
+        // 날짜 진행 방향 추적: 이전 날짜가 다시 나오면 재방문/추가방문으로 간주
+        const isDateRegression = (date < maxDateSeen);
+        if (date > maxDateSeen) maxDateSeen = date;
+        if (isDateRegression) dateRegression++;
 
         // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
         const dCol = String(row[2] || '').trim();
@@ -618,8 +624,10 @@ class GoogleSheetsService {
         const cCol = String(row[1] || '');
         const isRevisit = cCol.includes('재방문');
 
+        // 인원수는 항상 포함 (D열 비어있는 경우만 위에서 제외됨)
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-        if (!isRevisit) {
+        // 시험건수: 재방문이거나 날짜가 역행하면 제외
+        if (!isRevisit && !isDateRegression) {
           rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
         }
         parsed++;
@@ -631,7 +639,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
