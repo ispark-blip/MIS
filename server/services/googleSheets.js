@@ -62,11 +62,15 @@ class GoogleSheetsService {
       const { google } = require('googleapis');
       const auth = new google.auth.GoogleAuth({
         keyFile: sheetsConfig.CREDENTIALS_PATH,
-        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
+        scopes: [
+          'https://www.googleapis.com/auth/spreadsheets',
+          'https://www.googleapis.com/auth/documents.readonly',
+        ],
       });
       this.sheets = google.sheets({ version: 'v4', auth });
+      this.docs = google.docs({ version: 'v1', auth });
       this.initialized = true;
-      console.log('[Sheets] Google Sheets 인증 완료');
+      console.log('[Sheets] Google Sheets + Docs 인증 완료');
       return true;
     } catch (err) {
       console.error('[Sheets] 인증 실패:', err.message);
@@ -557,9 +561,92 @@ class GoogleSheetsService {
     }
     console.log(`[Sheets] 문정 월별 분포:`, JSON.stringify(monthCounts));
 
-    for (const [date, total] of dailyTotals) {
-      results.push({ date, lab: '문정', subject_count: total, test_count: rowCounts.get(date) || 0 });
+    // 시험건수는 Google Docs 일정 문서에서 별도 파싱 (셀 내 단락 수 = 시험 1건)
+    const docTestCounts = await this._syncMjTestCountsFromDoc();
+
+    // 인원수(배정표) + 시험건수(Docs) 병합. Docs에 없는 날짜는 배정표 행 수로 폴백.
+    const allDates = new Set([...dailyTotals.keys(), ...docTestCounts.keys()]);
+    for (const date of allDates) {
+      const subjectCount = dailyTotals.get(date) || 0;
+      const testCount = docTestCounts.has(date)
+        ? docTestCounts.get(date)
+        : (rowCounts.get(date) || 0);
+      results.push({ date, lab: '문정', subject_count: subjectCount, test_count: testCount });
     }
+  }
+
+  // 문정 Google Docs(캘린더 테이블)에서 시험건수 파싱
+  // 테이블 구조: 요일 헤더 → 날짜(숫자) + 시험 내용(단락들)이 한 셀에 묶임
+  // 각 셀의 첫 단락에 날짜(1~31), 나머지 단락이 시험 내용(● 불릿)
+  async _syncMjTestCountsFromDoc() {
+    const docId = sheetsConfig.EXTERNAL_MJ_DOC_ID;
+    const testCountsByDate = new Map();
+    if (!docId || !this.docs) {
+      if (!docId) console.log('[Docs] EXTERNAL_MJ_DOC_ID 미설정 → Docs 시험건수 건너뜀');
+      return testCountsByDate;
+    }
+
+    let doc;
+    try {
+      const res = await this.docs.documents.get({ documentId: docId });
+      doc = res.data;
+    } catch (err) {
+      console.warn('[Docs] 문정 Docs 조회 실패:', err.message);
+      return testCountsByDate;
+    }
+
+    const getText = (element) => {
+      if (!element?.paragraph?.elements) return '';
+      return element.paragraph.elements.map(el => el.textRun?.content || '').join('');
+    };
+    const cellParagraphs = (cell) => {
+      return (cell.content || [])
+        .map(el => getText(el).replace(/\n$/, '').trim())
+        .filter(t => t.length > 0);
+    };
+
+    const body = doc.body?.content || [];
+    let currentYear = null, currentMonth = null;
+    let grandTotal = 0;
+
+    for (const element of body) {
+      if (element.paragraph) {
+        const text = getText(element).trim();
+        const m = text.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
+        if (m) {
+          currentYear = parseInt(m[1]);
+          currentMonth = parseInt(m[2]);
+        }
+      } else if (element.table && currentYear && currentMonth) {
+        let tabTotal = 0, tabDays = 0;
+        for (const row of element.table.tableRows || []) {
+          for (const cell of row.tableCells || []) {
+            const paragraphs = cellParagraphs(cell);
+            if (paragraphs.length === 0) continue;
+            // 첫 단락이 날짜 숫자(1~31)인지 확인
+            const dm = paragraphs[0].match(/^(\d{1,2})$/);
+            if (!dm) continue;
+            const day = parseInt(dm[1]);
+            if (day < 1 || day > 31) continue;
+            // 나머지 단락이 시험 내용 (불릿 포함)
+            // ●, ◆, *, - 등으로 시작하거나 의미있는 텍스트(3자 이상)만 카운트
+            const testLines = paragraphs.slice(1).filter(p => p.length > 2);
+            if (testLines.length === 0) continue;
+            const date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+            testCountsByDate.set(date, (testCountsByDate.get(date) || 0) + testLines.length);
+            tabTotal += testLines.length;
+            tabDays++;
+          }
+        }
+        if (tabDays > 0) {
+          console.log(`[Docs] 문정 ${currentYear}-${String(currentMonth).padStart(2, '0')}: ${tabDays}일자, ${tabTotal}건`);
+          grandTotal += tabTotal;
+        }
+      }
+    }
+
+    console.log(`[Docs] 문정 Docs 시험건수 총합: ${testCountsByDate.size}일, ${grandTotal}건`);
+    return testCountsByDate;
   }
 
   async _syncGsSubjects(results) {
@@ -700,12 +787,15 @@ class GoogleSheetsService {
     }
   }
 
-  // 가산 월별 캘린더 탭(YYYY-MM)에서 시험건수 파싱
+  // 가산 월별 캘린더 시트(별도 Google Sheets)에서 시험건수 파싱
   // 캘린더 구조: 날짜행(M/D...) 바로 아래에 내용행, 셀 내 Alt+Enter로 여러 시험 구분
   async _syncGsTestCountsFromCalendar() {
-    const sheetId = sheetsConfig.EXTERNAL_GS_SHEET_ID;
+    const sheetId = sheetsConfig.EXTERNAL_GS_CALENDAR_SHEET_ID;
     const testCountsByDate = new Map();
-    if (!sheetId) return testCountsByDate;
+    if (!sheetId) {
+      console.log('[Sheets] EXTERNAL_GS_CALENDAR_SHEET_ID 미설정 → 가산 캘린더 시험건수 건너뜀');
+      return testCountsByDate;
+    }
 
     let allTabs;
     try {
