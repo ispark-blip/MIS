@@ -16,6 +16,10 @@ const app = express();
 const PORT = process.env.PORT || 3000;
 const HOST = process.env.HOST || '0.0.0.0';
 
+// Cloudflare Tunnel/리버스 프록시 뒤에서 동작: X-Forwarded-* 헤더 신뢰
+// (원본 클라이언트 IP를 req.ip로 얻기 위함, secure 쿠키 판정에도 필요)
+app.set('trust proxy', 1);
+
 // SSE 매니저 초기화
 const sseManager = new SSEManager();
 app.set('sseManager', sseManager);
@@ -30,6 +34,7 @@ app.use(express.json());
 app.use(cookieParser());
 
 // 세션 설정
+const isProd = process.env.NODE_ENV === 'production';
 app.use(session({
   store: new SQLiteSessionStore(),
   secret: process.env.SESSION_SECRET || 'kdri-mis-dev-secret',
@@ -37,7 +42,8 @@ app.use(session({
   saveUninitialized: false,
   cookie: {
     httpOnly: true,
-    secure: process.env.COOKIE_SECURE === 'true',
+    // 프로덕션(Cloudflare Tunnel 경유)에서는 항상 secure 쿠키
+    secure: isProd || process.env.COOKIE_SECURE === 'true',
     sameSite: 'lax',
     maxAge: 8 * 60 * 60 * 1000, // 8시간
   },
