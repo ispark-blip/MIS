@@ -224,28 +224,35 @@ class GoogleSheetsService {
     });
   }
 
-  _computeDateBounds(targetMonth, targetYear) {
+  _computeDateBounds(targetMonth, targetYear, targetDay) {
     const now = new Date();
+    const pad2 = (n) => String(n).padStart(2, '0');
     const y = targetYear || now.getFullYear();
     const m = targetMonth || (now.getMonth() + 1);
-    const isCurrentMonth = (y === now.getFullYear() && m === now.getMonth() + 1);
-    let today;
-    if (isCurrentMonth) {
-      today = `${y}-${String(m).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;
+    const lastDay = new Date(y, m, 0).getDate();
+    const actualTodayYMD = `${now.getFullYear()}-${pad2(now.getMonth() + 1)}-${pad2(now.getDate())}`;
+
+    let day;
+    if (targetDay) {
+      day = Math.min(Math.max(1, parseInt(targetDay)), lastDay);
     } else {
-      const lastDay = new Date(y, m, 0).getDate();
-      today = `${y}-${String(m).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`;
+      const isCurMonth = (y === now.getFullYear() && m === now.getMonth() + 1);
+      day = isCurMonth ? now.getDate() : lastDay;
     }
-    const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
+
+    const today = `${y}-${pad2(m)}-${pad2(day)}`;
+    const monthStart = `${y}-${pad2(m)}-01`;
     const yearStart = `${y}-01-01`;
     const thirtyDaysAgoMs = Date.parse(today) - 30 * 86400 * 1000;
+    // 기준일이 실제 오늘과 동일한 경우만 backfill 미적용 (해당 날짜의 실제 값을 그대로 표시)
+    const isCurrentMonth = (today === actualTodayYMD);
     return { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth };
   }
 
   // 시험건수 summary - 시험대상자 데이터에서 자동 추출 우선 (행 1개 = 건수 1건)
-  getCachedTestCountsSummary(targetMonth, targetYear) {
+  getCachedTestCountsSummary(targetMonth, targetYear, targetDay) {
     // 시험대상자 데이터에서 시험건수 자동 추출 (우선)
-    const derived = this._deriveTestCountsFromSubjects(targetMonth, targetYear);
+    const derived = this._deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay);
     if (derived) return derived;
 
     // 폴백: 전용 시험건수 시트
@@ -253,7 +260,7 @@ class GoogleSheetsService {
     const rows = this.transformTestCountsData();
     if (rows.length === 0) return null;
 
-    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
     const deptMap = new Map();
     for (const r of rows) {
@@ -297,13 +304,13 @@ class GoogleSheetsService {
   }
 
   // 시험대상자 시트에서 시험건수 추출: 인원수가 있는 행 1개 = 시험건수 1건
-  _deriveTestCountsFromSubjects(targetMonth, targetYear) {
+  _deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay) {
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
 
     if (internalRows.length === 0 && externalRows.length === 0) return null;
 
-    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
     // 내부 시트: 인원수 > 0인 행 1개 = 시험 1건
     // 외부 동기화: 일별 test_count (행 수) 이미 집계됨
@@ -394,12 +401,12 @@ class GoogleSheetsService {
   }
 
   // 시험대상자 summary (내부 시트 + 외부 동기화 데이터 병합)
-  getCachedSubjectsSummary(targetMonth, targetYear) {
+  getCachedSubjectsSummary(targetMonth, targetYear, targetDay) {
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
 
     if (internalRows.length === 0 && externalRows.length === 0) {
-      if (targetMonth) console.log(`[Sheets] 시험대상자 summary 요청 ${targetYear||'?'}년${targetMonth}월: 내부=${internalRows.length}, 외부=${externalRows.length} → null 반환`);
+      if (targetMonth) console.log(`[Sheets] 시험대상자 summary 요청 ${targetYear||'?'}년${targetMonth}월${targetDay?`/${targetDay}일`:''}: 내부=${internalRows.length}, 외부=${externalRows.length} → null 반환`);
       return null;
     }
 
@@ -408,7 +415,7 @@ class GoogleSheetsService {
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
-    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
+    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
     const labs = LABS_CONFIG;
     return labs.map(lab => {

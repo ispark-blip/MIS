@@ -16,8 +16,12 @@ export default function Header({ onLogout }) {
     user, selectedLab, setSelectedLab,
     selectedYear, setSelectedYear,
     selectedMonth, setSelectedMonth,
+    selectedDay, setSelectedDay,
     connectionStatus,
   } = useDashboardStore();
+
+  const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+  const clampedDay = Math.min(selectedDay, daysInMonth);
 
   useEffect(() => {
     api.get('/settings').then(r => {
@@ -84,7 +88,7 @@ export default function Header({ onLogout }) {
           {labs.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
 
-        {/* 연도/월 선택 */}
+        {/* 연도/월/일 선택 */}
         <div className="flex gap-1">
           <select
             value={selectedYear}
@@ -99,6 +103,14 @@ export default function Header({ onLogout }) {
             className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0"
           >
             {Array.from({ length: 12 }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}월</option>)}
+          </select>
+          <select
+            value={clampedDay}
+            onChange={(e) => setSelectedDay(parseInt(e.target.value))}
+            className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0"
+            title="기준일"
+          >
+            {Array.from({ length: daysInMonth }, (_, i) => <option key={i + 1} value={i + 1}>{i + 1}일</option>)}
           </select>
         </div>
 

@@ -18,7 +18,7 @@ export default function DashboardPage() {
   const {
     selectedLab, setSelectedLab,
     selectedYear, setSelectedYear,
-    selectedMonth, selectedQuarter, setSelectedQuarter,
+    selectedMonth, selectedDay, selectedQuarter, setSelectedQuarter,
     salesData, setSalesData,
     quarterlyData, setQuarterlyData,
     testCountData, setTestCountData,
@@ -60,11 +60,13 @@ export default function DashboardPage() {
   }, [selectedLab, selectedQuarter, selectedYear]);
 
   useEffect(() => {
-    api.get('/test-counts/summary', { params: { month: selectedMonth, year: selectedYear } })
+    const daysInMonth = new Date(selectedYear, selectedMonth, 0).getDate();
+    const day = Math.min(selectedDay, daysInMonth);
+    api.get('/test-counts/summary', { params: { month: selectedMonth, year: selectedYear, day } })
       .then(r => setTestCountData(r.data.data)).catch(() => {});
-    api.get('/subjects/summary', { params: { month: selectedMonth, year: selectedYear } })
+    api.get('/subjects/summary', { params: { month: selectedMonth, year: selectedYear, day } })
       .then(r => setSubjectData(r.data.data)).catch(() => {});
-  }, [selectedMonth, selectedYear]);
+  }, [selectedMonth, selectedYear, selectedDay]);
 
   return (
     <div className="min-h-screen md:h-screen flex flex-col bg-gray-50">

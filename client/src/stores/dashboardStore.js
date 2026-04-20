@@ -12,6 +12,8 @@ const useDashboardStore = create((set) => ({
   setSelectedYear: (year) => set({ selectedYear: year }),
   selectedMonth: new Date().getMonth() + 1,
   setSelectedMonth: (month) => set({ selectedMonth: month }),
+  selectedDay: new Date().getDate(),
+  setSelectedDay: (day) => set({ selectedDay: day }),
   selectedQuarter: `Q${Math.ceil((new Date().getMonth() + 1) / 3)}`,
   setSelectedQuarter: (q) => set({ selectedQuarter: q }),
 
