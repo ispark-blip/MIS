@@ -16,9 +16,8 @@ export default function DashboardPage() {
   const { logout } = useAuth();
 
   const {
-    selectedLab, setSelectedLab,
-    selectedYear, setSelectedYear,
-    selectedMonth, selectedDay, selectedQuarter, setSelectedQuarter,
+    selectedLab, selectedYear,
+    selectedMonth, selectedDay, selectedQuarter,
     salesData, setSalesData,
     quarterlyData, setQuarterlyData,
     testCountData, setTestCountData,
@@ -37,17 +36,6 @@ export default function DashboardPage() {
   };
   const testCountRefDate = formatRefDate(pickRefDate(testCountData));
   const subjectRefDate = formatRefDate(pickRefDate(subjectData));
-
-  // 대시보드 기본값을 서버 설정에서 적용 (최초 1회)
-  useEffect(() => {
-    api.get('/settings').then(r => {
-      const s = r.data.data || {};
-      if (s.default_lab) setSelectedLab(s.default_lab);
-      if (s.default_year) setSelectedYear(parseInt(s.default_year) || new Date().getFullYear());
-      if (s.default_quarter) setSelectedQuarter(s.default_quarter);
-    }).catch(() => {});
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   // 데이터 로드
   useEffect(() => {
