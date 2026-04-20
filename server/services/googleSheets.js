@@ -584,7 +584,7 @@ class GoogleSheetsService {
       const rows = res.data.values || [];
       const dailyTotals = new Map();
       const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0;
+      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0;
 
       for (const row of rows) {
         if (!row || row.length < 1) continue;
@@ -593,6 +593,10 @@ class GoogleSheetsService {
 
         const date = parseSheetDate(dateRaw);
         if (!date) { dateFail++; continue; }
+
+        // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
+        const dCol = String(row[2] || '').trim();
+        if (!dCol) { skipped++; continue; }
 
         const countRaw = row.length >= 7 ? row[6] : undefined;
         if (countRaw === undefined || countRaw === null || countRaw === '') {
@@ -620,7 +624,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
