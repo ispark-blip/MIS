@@ -587,7 +587,7 @@ class GoogleSheetsService {
       const res = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
         ranges: [`'${tabName}'!B:H`],
-        fields: 'sheets(data(rowData(values(effectiveValue,formattedValue,effectiveFormat(backgroundColor)))))',
+        fields: 'sheets(data(rowData(values(effectiveValue,formattedValue,effectiveFormat(backgroundColor,backgroundColorStyle),userEnteredFormat(backgroundColor,backgroundColorStyle)))))',
       });
       const rowData = res.data.sheets?.[0]?.data?.[0]?.rowData || [];
 
@@ -602,10 +602,32 @@ class GoogleSheetsService {
         return cell.formattedValue ?? '';
       };
       const isBlackBg = (cell) => {
-        const bg = cell?.effectiveFormat?.backgroundColor;
+        if (!cell) return false;
+        // effectiveFormat 또는 userEnteredFormat 중 하나라도 확인
+        const fmt = cell.effectiveFormat || cell.userEnteredFormat;
+        if (!fmt) return false;
+        // backgroundColorStyle.rgbColor (newer API) 우선, backgroundColor (deprecated) 폴백
+        const bg = fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor;
         if (!bg) return false;
-        return (bg.red ?? 0) < 0.15 && (bg.green ?? 0) < 0.15 && (bg.blue ?? 0) < 0.15;
+        // Google Sheets는 0값 프로퍼티를 생략할 수 있음 → undefined일 때 0으로 취급
+        const r = bg.red ?? 0, g = bg.green ?? 0, b = bg.blue ?? 0;
+        return r < 0.15 && g < 0.15 && b < 0.15;
       };
+
+      // 디버그: 첫 몇 행의 포맷 데이터 출력 (흑색 감지 검증용)
+      let debugCount = 0;
+      for (let i = 0; i < rowData.length && debugCount < 10; i++) {
+        const cells = rowData[i]?.values || [];
+        if (cells.length === 0) continue;
+        const cell0 = cells[0];
+        const ef = cell0?.effectiveFormat;
+        const uf = cell0?.userEnteredFormat;
+        if (ef || uf) {
+          const dateVal = cellValue(cell0);
+          console.log(`[Sheets] 가산 행${i} date=${dateVal} effectiveFormat:`, JSON.stringify(ef || null), 'userEnteredFormat:', JSON.stringify(uf || null));
+          debugCount++;
+        }
+      }
 
       const dailyTotals = new Map();
       const rowCounts = new Map();
@@ -631,7 +653,16 @@ class GoogleSheetsService {
         // 첫 몇 셀(B~E)의 배경을 확인, 다수가 흑색이면 흑색 행으로 판단
         const bgSamples = [cells[0], cells[1], cells[2], cells[3]];
         const blackCount = bgSamples.filter(isBlackBg).length;
-        if (blackCount >= 2) { blackRows++; continue; }
+        if (blackCount >= 2) {
+          const bgDebug = bgSamples.map((c, ci) => {
+            const fmt = c?.effectiveFormat;
+            const bg = fmt?.backgroundColorStyle?.rgbColor || fmt?.backgroundColor;
+            return `셀${ci}:${bg ? JSON.stringify(bg) : 'no-bg'}`;
+          }).join(', ');
+          console.log(`[Sheets] 가산 흑색행 감지 (행${rowData.indexOf(row)}): date=${date}, ${bgDebug}`);
+          blackRows++;
+          continue;
+        }
 
         const countRaw = cellValue(cells[6]);
         if (countRaw === '' || countRaw === null || countRaw === undefined) {
