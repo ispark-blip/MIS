@@ -610,9 +610,9 @@ class GoogleSheetsService {
         const bg = fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor;
         if (!bg) return false;
         // Google Sheets는 0값 프로퍼티를 생략할 수 있음 → undefined일 때 0으로 취급
-        // 흑색/진회색 포함 — 사용자가 순수 흑색이 아닌 진한 회색을 사용할 수도 있음
+        // 흑색/회색 포함 — 구글시트 기본 회색 팔레트 (RGB ~0.40) 도 취소 표시로 사용
         const r = bg.red ?? 0, g = bg.green ?? 0, b = bg.blue ?? 0;
-        return r < 0.3 && g < 0.3 && b < 0.3;
+        return r < 0.5 && g < 0.5 && b < 0.5;
       };
 
       // 디버그: "어두운" 배경을 가진 행을 모두 출력 (흑색 감지 검증용)
