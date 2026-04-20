@@ -1,5 +1,5 @@
-import { RefreshCw, LogOut, LogIn, Menu, X, Settings, ClipboardList, Users } from 'lucide-react';
-import { useEffect, useState } from 'react';
+import { RefreshCw, LogOut, LogIn, Menu, X, Settings, ClipboardList, Users, Maximize2, Minimize2 } from 'lucide-react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import useDashboardStore from '../../stores/dashboardStore';
 import api from '../../utils/api';
@@ -8,7 +8,9 @@ export default function Header({ onLogout }) {
   const navigate = useNavigate();
   const [mobileOpen, setMobileOpen] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   const [branding, setBranding] = useState({ company_abbr: 'KIDS', system_title: '경영정보현황시스템', logo_url: '' });
+  const [labs, setLabs] = useState([]);
 
   const {
     user, selectedLab, setSelectedLab,
@@ -17,7 +19,6 @@ export default function Header({ onLogout }) {
     connectionStatus,
   } = useDashboardStore();
 
-  // 브랜딩 로드
   useEffect(() => {
     api.get('/settings').then(r => {
       const s = r.data.data || {};
@@ -27,6 +28,21 @@ export default function Header({ onLogout }) {
         logo_url: s.logo_url || '',
       });
     }).catch(() => {});
+    api.get('/config/departments').then(r => setLabs(r.data.data?.labs || [])).catch(() => {});
+  }, []);
+
+  useEffect(() => {
+    const onChange = () => setIsFullscreen(!!document.fullscreenElement);
+    document.addEventListener('fullscreenchange', onChange);
+    return () => document.removeEventListener('fullscreenchange', onChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
   }, []);
 
   const handleRefresh = async () => {
@@ -65,8 +81,7 @@ export default function Header({ onLogout }) {
           className="bg-slate-700 text-white text-sm rounded-md px-2 py-1.5 border-0 focus:ring-1 focus:ring-white/30"
         >
           <option value="전체">전체</option>
-          <option value="문정">문정</option>
-          <option value="가산">가산</option>
+          {labs.map(l => <option key={l} value={l}>{l}</option>)}
         </select>
 
         {/* 연도/월 선택 */}
@@ -90,6 +105,11 @@ export default function Header({ onLogout }) {
         {/* 새로고침 */}
         <button onClick={handleRefresh} disabled={refreshing} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title="새로고침">
           <RefreshCw size={18} className={refreshing ? 'animate-spin' : ''} />
+        </button>
+
+        {/* 전체화면 */}
+        <button onClick={toggleFullscreen} className="hover:bg-slate-700 rounded-md p-1.5 transition-colors" title={isFullscreen ? '전체화면 해제' : '전체화면'}>
+          {isFullscreen ? <Minimize2 size={18} /> : <Maximize2 size={18} />}
         </button>
 
         {/* SSE 상태 */}
