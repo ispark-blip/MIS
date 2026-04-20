@@ -62,15 +62,11 @@ class GoogleSheetsService {
       const { google } = require('googleapis');
       const auth = new google.auth.GoogleAuth({
         keyFile: sheetsConfig.CREDENTIALS_PATH,
-        scopes: [
-          'https://www.googleapis.com/auth/spreadsheets',
-          'https://www.googleapis.com/auth/documents.readonly',
-        ],
+        scopes: ['https://www.googleapis.com/auth/spreadsheets'],
       });
       this.sheets = google.sheets({ version: 'v4', auth });
-      this.docs = google.docs({ version: 'v1', auth });
       this.initialized = true;
-      console.log('[Sheets] Google Sheets + Docs 인증 완료');
+      console.log('[Sheets] Google Sheets 인증 완료');
       return true;
     } catch (err) {
       console.error('[Sheets] 인증 실패:', err.message);
@@ -561,92 +557,9 @@ class GoogleSheetsService {
     }
     console.log(`[Sheets] 문정 월별 분포:`, JSON.stringify(monthCounts));
 
-    // 시험건수는 Google Docs 일정 문서에서 별도 파싱 (셀 내 단락 수 = 시험 1건)
-    const docTestCounts = await this._syncMjTestCountsFromDoc();
-
-    // 인원수(배정표) + 시험건수(Docs) 병합. Docs에 없는 날짜는 배정표 행 수로 폴백.
-    const allDates = new Set([...dailyTotals.keys(), ...docTestCounts.keys()]);
-    for (const date of allDates) {
-      const subjectCount = dailyTotals.get(date) || 0;
-      const testCount = docTestCounts.has(date)
-        ? docTestCounts.get(date)
-        : (rowCounts.get(date) || 0);
-      results.push({ date, lab: '문정', subject_count: subjectCount, test_count: testCount });
+    for (const [date, total] of dailyTotals) {
+      results.push({ date, lab: '문정', subject_count: total, test_count: rowCounts.get(date) || 0 });
     }
-  }
-
-  // 문정 Google Docs(캘린더 테이블)에서 시험건수 파싱
-  // 테이블 구조: 요일 헤더 → 날짜(숫자) + 시험 내용(단락들)이 한 셀에 묶임
-  // 각 셀의 첫 단락에 날짜(1~31), 나머지 단락이 시험 내용(● 불릿)
-  async _syncMjTestCountsFromDoc() {
-    const docId = sheetsConfig.EXTERNAL_MJ_DOC_ID;
-    const testCountsByDate = new Map();
-    if (!docId || !this.docs) {
-      if (!docId) console.log('[Docs] EXTERNAL_MJ_DOC_ID 미설정 → Docs 시험건수 건너뜀');
-      return testCountsByDate;
-    }
-
-    let doc;
-    try {
-      const res = await this.docs.documents.get({ documentId: docId });
-      doc = res.data;
-    } catch (err) {
-      console.warn('[Docs] 문정 Docs 조회 실패:', err.message);
-      return testCountsByDate;
-    }
-
-    const getText = (element) => {
-      if (!element?.paragraph?.elements) return '';
-      return element.paragraph.elements.map(el => el.textRun?.content || '').join('');
-    };
-    const cellParagraphs = (cell) => {
-      return (cell.content || [])
-        .map(el => getText(el).replace(/\n$/, '').trim())
-        .filter(t => t.length > 0);
-    };
-
-    const body = doc.body?.content || [];
-    let currentYear = null, currentMonth = null;
-    let grandTotal = 0;
-
-    for (const element of body) {
-      if (element.paragraph) {
-        const text = getText(element).trim();
-        const m = text.match(/(\d{4})\s*년\s*(\d{1,2})\s*월/);
-        if (m) {
-          currentYear = parseInt(m[1]);
-          currentMonth = parseInt(m[2]);
-        }
-      } else if (element.table && currentYear && currentMonth) {
-        let tabTotal = 0, tabDays = 0;
-        for (const row of element.table.tableRows || []) {
-          for (const cell of row.tableCells || []) {
-            const paragraphs = cellParagraphs(cell);
-            if (paragraphs.length === 0) continue;
-            // 첫 단락이 날짜 숫자(1~31)인지 확인
-            const dm = paragraphs[0].match(/^(\d{1,2})$/);
-            if (!dm) continue;
-            const day = parseInt(dm[1]);
-            if (day < 1 || day > 31) continue;
-            // 나머지 단락이 시험 내용 (불릿 포함)
-            // ●, ◆, *, - 등으로 시작하거나 의미있는 텍스트(3자 이상)만 카운트
-            const testLines = paragraphs.slice(1).filter(p => p.length > 2);
-            if (testLines.length === 0) continue;
-            const date = `${currentYear}-${String(currentMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-            testCountsByDate.set(date, (testCountsByDate.get(date) || 0) + testLines.length);
-            tabTotal += testLines.length;
-            tabDays++;
-          }
-        }
-        if (tabDays > 0) {
-          console.log(`[Docs] 문정 ${currentYear}-${String(currentMonth).padStart(2, '0')}: ${tabDays}일자, ${tabTotal}건`);
-          grandTotal += tabTotal;
-        }
-      }
-    }
-
-    console.log(`[Docs] 문정 Docs 시험건수 총합: ${testCountsByDate.size}일, ${grandTotal}건`);
-    return testCountsByDate;
   }
 
   async _syncGsSubjects(results) {
@@ -670,49 +583,21 @@ class GoogleSheetsService {
     if (!tabName) return;
 
     try {
-      // 값 + 배경색을 한 번에 조회 (흑색 행 제외 판정용)
-      const res = await this.sheets.spreadsheets.get({
+      const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetId,
-        ranges: [`'${tabName}'!B:H`],
-        fields: 'sheets(data(rowData(values(effectiveValue,formattedValue,effectiveFormat(backgroundColor,backgroundColorStyle),userEnteredFormat(backgroundColor,backgroundColorStyle)))))',
+        range: `'${tabName}'!B:H`,
+        valueRenderOption: 'UNFORMATTED_VALUE',
       });
-      const rowData = res.data.sheets?.[0]?.data?.[0]?.rowData || [];
-
-      const cellValue = (cell) => {
-        if (!cell) return '';
-        const ev = cell.effectiveValue;
-        if (ev) {
-          if (typeof ev.numberValue === 'number') return ev.numberValue;
-          if (typeof ev.stringValue === 'string') return ev.stringValue;
-          if (typeof ev.boolValue === 'boolean') return ev.boolValue;
-        }
-        return cell.formattedValue ?? '';
-      };
-      const isBlackBg = (cell) => {
-        if (!cell) return false;
-        // effectiveFormat 또는 userEnteredFormat 중 하나라도 확인
-        const fmt = cell.effectiveFormat || cell.userEnteredFormat;
-        if (!fmt) return false;
-        // backgroundColorStyle.rgbColor (newer API) 우선, backgroundColor (deprecated) 폴백
-        const bg = fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor;
-        if (!bg) return false;
-        // Google Sheets는 0값 프로퍼티를 생략할 수 있음 → undefined일 때 0으로 취급
-        // 흑색/회색 포함 — 구글시트 기본 회색 팔레트 (RGB ~0.40) 도 취소 표시로 사용
-        const r = bg.red ?? 0, g = bg.green ?? 0, b = bg.blue ?? 0;
-        return r < 0.5 && g < 0.5 && b < 0.5;
-      };
-
+      const rows = res.data.values || [];
       const dailyTotals = new Map();
       const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, blackRows = 0, dateRegression = 0;
+      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0, dateRegression = 0;
       let maxDateSeen = '';
 
-      for (const row of rowData) {
-        const cells = row.values || [];
-        if (cells.length === 0) continue;
-
-        const dateRaw = cellValue(cells[0]);
-        if (dateRaw === '' || dateRaw === null || dateRaw === undefined) continue;
+      for (const row of rows) {
+        if (!row || row.length < 1) continue;
+        const dateRaw = row[0];
+        if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
 
         const date = parseSheetDate(dateRaw);
         if (!date) { dateFail++; continue; }
@@ -722,23 +607,12 @@ class GoogleSheetsService {
         if (date > maxDateSeen) maxDateSeen = date;
         if (isDateRegression) dateRegression++;
 
-        // 행 전체가 흑색으로 채워진 경우(취소 건) → 시험건수+인원수 모두 제외
-        // 첫 몇 셀(B~E)의 배경을 확인, 다수가 흑색이면 흑색 행으로 판단
-        const bgSamples = [cells[0], cells[1], cells[2], cells[3]];
-        const blackCount = bgSamples.filter(isBlackBg).length;
-        if (blackCount >= 2) {
-          const bgDebug = bgSamples.map((c, ci) => {
-            const fmt = c?.effectiveFormat;
-            const bg = fmt?.backgroundColorStyle?.rgbColor || fmt?.backgroundColor;
-            return `셀${ci}:${bg ? JSON.stringify(bg) : 'no-bg'}`;
-          }).join(', ');
-          console.log(`[Sheets] 가산 흑색행 감지 (행${rowData.indexOf(row)}): date=${date}, ${bgDebug}`);
-          blackRows++;
-          continue;
-        }
+        // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
+        const dCol = String(row[2] || '').trim();
+        if (!dCol) { skipped++; continue; }
 
-        const countRaw = cellValue(cells[6]);
-        if (countRaw === '' || countRaw === null || countRaw === undefined) {
+        const countRaw = row.length >= 7 ? row[6] : undefined;
+        if (countRaw === undefined || countRaw === null || countRaw === '') {
           countMissing++;
           continue;
         }
@@ -747,7 +621,7 @@ class GoogleSheetsService {
         if (isNaN(count) || count <= 0) { countMissing++; continue; }
 
         // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
-        const cCol = String(cellValue(cells[1]) || '');
+        const cCol = String(row[1] || '');
         const isRevisit = cCol.includes('재방문');
 
         // 인원수는 항상 포함. 단, 날짜 역행(재방문)은 실제 방문일(maxDateSeen)에 합산
@@ -766,105 +640,15 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rowData.length}행 읽음, ${parsed}행 파싱, 흑색행=${blackRows}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
-      // 시험건수는 월별 캘린더 탭에서 별도 파싱 (셀 내 줄바꿈 = 시험 1건)
-      const calendarTestCounts = await this._syncGsTestCountsFromCalendar();
-
-      // 인원수(리스트 탭) + 시험건수(캘린더 탭) 병합
-      const allDates = new Set([...dailyTotals.keys(), ...calendarTestCounts.keys()]);
-      for (const date of allDates) {
-        results.push({
-          date,
-          lab: '가산',
-          subject_count: dailyTotals.get(date) || 0,
-          test_count: calendarTestCounts.get(date) ?? 0,
-        });
+      for (const [date, total] of dailyTotals) {
+        results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
       }
     } catch (err) {
       console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
     }
-  }
-
-  // 가산 월별 캘린더 시트(별도 Google Sheets)에서 시험건수 파싱
-  // 캘린더 구조: 날짜행(M/D...) 바로 아래에 내용행, 셀 내 Alt+Enter로 여러 시험 구분
-  async _syncGsTestCountsFromCalendar() {
-    const sheetId = sheetsConfig.EXTERNAL_GS_CALENDAR_SHEET_ID;
-    const testCountsByDate = new Map();
-    if (!sheetId) {
-      console.log('[Sheets] EXTERNAL_GS_CALENDAR_SHEET_ID 미설정 → 가산 캘린더 시험건수 건너뜀');
-      return testCountsByDate;
-    }
-
-    let allTabs;
-    try {
-      const meta = await this.sheets.spreadsheets.get({
-        spreadsheetId: sheetId,
-        fields: 'sheets.properties.title',
-      });
-      allTabs = meta.data.sheets.map(s => s.properties.title);
-    } catch (err) {
-      console.warn('[Sheets] 가산 캘린더 탭 목록 조회 실패:', err.message);
-      return testCountsByDate;
-    }
-
-    const monthlyTabs = allTabs.filter(t => /^\d{4}-\d{2}$/.test(t));
-    console.log(`[Sheets] 가산 월별 캘린더 탭 ${monthlyTabs.length}개: ${monthlyTabs.join(', ')}`);
-    if (monthlyTabs.length === 0) return testCountsByDate;
-
-    let grandTotal = 0;
-    for (const tabName of monthlyTabs) {
-      const [year, month] = tabName.split('-').map(Number);
-      try {
-        const res = await this.sheets.spreadsheets.values.get({
-          spreadsheetId: sheetId,
-          range: `'${tabName}'!A:G`,
-          valueRenderOption: 'FORMATTED_VALUE',
-        });
-        const rows = res.data.values || [];
-
-        let tabTotal = 0, tabDays = 0;
-        for (let i = 0; i < rows.length; i++) {
-          const row = rows[i] || [];
-          // 날짜 행 감지: "M/D" 패턴 셀이 3개 이상
-          const dateCells = row.map(cell => {
-            const m = String(cell || '').match(/^\s*(\d{1,2})\/(\d{1,2})/);
-            return m ? { month: parseInt(m[1]), day: parseInt(m[2]) } : null;
-          });
-          if (dateCells.filter(Boolean).length < 3) continue;
-
-          // 다음 행이 내용 행
-          const contentRow = rows[i + 1] || [];
-          for (let col = 0; col < dateCells.length; col++) {
-            const dc = dateCells[col];
-            if (!dc) continue;
-            if (dc.month !== month) continue; // 이전/다음달 날짜 스킵
-            if (dc.day < 1 || dc.day > 31) continue;
-
-            const contentCell = String(contentRow[col] || '');
-            // Alt+Enter(줄바꿈)로 split, 빈 줄/공백 제외
-            const lines = contentCell.split('\n')
-              .map(l => l.trim())
-              .filter(l => l.length > 2); // 1-2자 단일 기호는 제외
-            const count = lines.length;
-            if (count === 0) continue;
-
-            const date = `${year}-${String(month).padStart(2, '0')}-${String(dc.day).padStart(2, '0')}`;
-            testCountsByDate.set(date, (testCountsByDate.get(date) || 0) + count);
-            tabTotal += count;
-            tabDays++;
-          }
-          i++; // 내용 행 건너뛰기
-        }
-        console.log(`[Sheets] 가산 캘린더 "${tabName}": ${rows.length}행, ${tabDays}일자, ${tabTotal}건`);
-        grandTotal += tabTotal;
-      } catch (err) {
-        console.warn(`[Sheets] 가산 캘린더 "${tabName}" 파싱 실패:`, err.message);
-      }
-    }
-    console.log(`[Sheets] 가산 캘린더 시험건수 총합: ${testCountsByDate.size}일, ${grandTotal}건`);
-    return testCountsByDate;
   }
 
   _parseMjTabYear(tabName) {
