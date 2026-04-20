@@ -610,22 +610,34 @@ class GoogleSheetsService {
         const bg = fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor;
         if (!bg) return false;
         // Google Sheets는 0값 프로퍼티를 생략할 수 있음 → undefined일 때 0으로 취급
+        // 흑색/진회색 포함 — 사용자가 순수 흑색이 아닌 진한 회색을 사용할 수도 있음
         const r = bg.red ?? 0, g = bg.green ?? 0, b = bg.blue ?? 0;
-        return r < 0.15 && g < 0.15 && b < 0.15;
+        return r < 0.3 && g < 0.3 && b < 0.3;
       };
 
-      // 디버그: 첫 몇 행의 포맷 데이터 출력 (흑색 감지 검증용)
-      let debugCount = 0;
-      for (let i = 0; i < rowData.length && debugCount < 10; i++) {
+      // 디버그: "어두운" 배경을 가진 행을 모두 출력 (흑색 감지 검증용)
+      // RGB 평균이 0.5 이하이면 어두운 행으로 간주
+      const getBg = (cell) => {
+        const fmt = cell?.effectiveFormat || cell?.userEnteredFormat;
+        if (!fmt) return null;
+        return fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor || null;
+      };
+      let darkLogCount = 0;
+      for (let i = 0; i < rowData.length && darkLogCount < 30; i++) {
         const cells = rowData[i]?.values || [];
         if (cells.length === 0) continue;
-        const cell0 = cells[0];
-        const ef = cell0?.effectiveFormat;
-        const uf = cell0?.userEnteredFormat;
-        if (ef || uf) {
-          const dateVal = cellValue(cell0);
-          console.log(`[Sheets] 가산 행${i} date=${dateVal} effectiveFormat:`, JSON.stringify(ef || null), 'userEnteredFormat:', JSON.stringify(uf || null));
-          debugCount++;
+        const samples = [cells[0], cells[1], cells[2], cells[3]];
+        const bgs = samples.map(getBg).filter(Boolean);
+        if (bgs.length === 0) continue;
+        const avg = bgs.reduce((s, bg) => s + ((bg.red ?? 0) + (bg.green ?? 0) + (bg.blue ?? 0)) / 3, 0) / bgs.length;
+        if (avg < 0.5) {
+          const dateVal = cellValue(cells[0]);
+          const bgSummary = samples.map((c, ci) => {
+            const bg = getBg(c);
+            return bg ? `${ci}:(${(bg.red ?? 0).toFixed(2)},${(bg.green ?? 0).toFixed(2)},${(bg.blue ?? 0).toFixed(2)})` : `${ci}:∅`;
+          }).join(' ');
+          console.log(`[Sheets] 가산 어두운행${i} date=${dateVal} avg=${avg.toFixed(2)} ${bgSummary}`);
+          darkLogCount++;
         }
       }
 
