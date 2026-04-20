@@ -583,21 +583,41 @@ class GoogleSheetsService {
     if (!tabName) return;
 
     try {
-      const res = await this.sheets.spreadsheets.values.get({
+      // 값 + 배경색을 한 번에 조회 (흑색 행 제외 판정용)
+      const res = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
-        range: `'${tabName}'!B:H`,
-        valueRenderOption: 'UNFORMATTED_VALUE',
+        ranges: [`'${tabName}'!B:H`],
+        fields: 'sheets(data(rowData(values(effectiveValue,formattedValue,effectiveFormat(backgroundColor)))))',
       });
-      const rows = res.data.values || [];
+      const rowData = res.data.sheets?.[0]?.data?.[0]?.rowData || [];
+
+      const cellValue = (cell) => {
+        if (!cell) return '';
+        const ev = cell.effectiveValue;
+        if (ev) {
+          if (typeof ev.numberValue === 'number') return ev.numberValue;
+          if (typeof ev.stringValue === 'string') return ev.stringValue;
+          if (typeof ev.boolValue === 'boolean') return ev.boolValue;
+        }
+        return cell.formattedValue ?? '';
+      };
+      const isBlackBg = (cell) => {
+        const bg = cell?.effectiveFormat?.backgroundColor;
+        if (!bg) return false;
+        return (bg.red ?? 0) < 0.15 && (bg.green ?? 0) < 0.15 && (bg.blue ?? 0) < 0.15;
+      };
+
       const dailyTotals = new Map();
       const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0, dateRegression = 0;
+      let parsed = 0, dateFail = 0, countMissing = 0, blackRows = 0, dateRegression = 0;
       let maxDateSeen = '';
 
-      for (const row of rows) {
-        if (!row || row.length < 1) continue;
-        const dateRaw = row[0];
-        if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
+      for (const row of rowData) {
+        const cells = row.values || [];
+        if (cells.length === 0) continue;
+
+        const dateRaw = cellValue(cells[0]);
+        if (dateRaw === '' || dateRaw === null || dateRaw === undefined) continue;
 
         const date = parseSheetDate(dateRaw);
         if (!date) { dateFail++; continue; }
@@ -607,12 +627,14 @@ class GoogleSheetsService {
         if (date > maxDateSeen) maxDateSeen = date;
         if (isDateRegression) dateRegression++;
 
-        // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
-        const dCol = String(row[2] || '').trim();
-        if (!dCol) { skipped++; continue; }
+        // 행 전체가 흑색으로 채워진 경우(취소 건) → 시험건수+인원수 모두 제외
+        // 첫 몇 셀(B~E)의 배경을 확인, 다수가 흑색이면 흑색 행으로 판단
+        const bgSamples = [cells[0], cells[1], cells[2], cells[3]];
+        const blackCount = bgSamples.filter(isBlackBg).length;
+        if (blackCount >= 2) { blackRows++; continue; }
 
-        const countRaw = row.length >= 7 ? row[6] : undefined;
-        if (countRaw === undefined || countRaw === null || countRaw === '') {
+        const countRaw = cellValue(cells[6]);
+        if (countRaw === '' || countRaw === null || countRaw === undefined) {
           countMissing++;
           continue;
         }
@@ -621,7 +643,7 @@ class GoogleSheetsService {
         if (isNaN(count) || count <= 0) { countMissing++; continue; }
 
         // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
-        const cCol = String(row[1] || '');
+        const cCol = String(cellValue(cells[1]) || '');
         const isRevisit = cCol.includes('재방문');
 
         // 인원수는 항상 포함. 단, 날짜 역행(재방문)은 실제 방문일(maxDateSeen)에 합산
@@ -640,7 +662,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rowData.length}행 읽음, ${parsed}행 파싱, 흑색행=${blackRows}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
