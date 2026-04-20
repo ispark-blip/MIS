@@ -624,8 +624,9 @@ class GoogleSheetsService {
         const cCol = String(row[1] || '');
         const isRevisit = cCol.includes('재방문');
 
-        // 인원수는 항상 포함 (D열 비어있는 경우만 위에서 제외됨)
-        dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+        // 인원수는 항상 포함. 단, 날짜 역행(재방문)은 실제 방문일(maxDateSeen)에 합산
+        const targetDate = isDateRegression ? maxDateSeen : date;
+        dailyTotals.set(targetDate, (dailyTotals.get(targetDate) || 0) + count);
         // 시험건수: 재방문이거나 날짜가 역행하면 제외
         if (!isRevisit && !isDateRegression) {
           rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
