@@ -21,14 +21,14 @@ export default function QuarterlyBar({ data }) {
   }));
 
   return (
-    <div className="h-full flex flex-col gap-2">
+    <div className="h-full flex flex-col gap-2 min-h-0">
       {/* 분기 선택 탭 */}
-      <div className="flex gap-2">
+      <div className="flex gap-1 sm:gap-2 shrink-0">
         {quarters.map((q) => (
           <button
             key={q}
             onClick={() => setSelectedQuarter(q)}
-            className={`px-4 py-1.5 text-sm rounded-md font-semibold transition-colors ${
+            className={`px-3 sm:px-4 py-1 sm:py-1.5 text-xs sm:text-sm rounded-md font-semibold transition-colors ${
               selectedQuarter === q ? 'bg-slate-800 text-white' : 'bg-gray-100 text-gray-600 hover:bg-gray-200'
             }`}
           >

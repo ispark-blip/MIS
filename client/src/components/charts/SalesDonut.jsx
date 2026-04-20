@@ -26,18 +26,18 @@ export default function SalesDonut({ data }) {
   }));
 
   return (
-    <div className="h-full flex flex-col gap-2">
-      {/* 수치 표시 (3배 크기) */}
-      <div className="flex items-center gap-5 flex-wrap">
+    <div className="h-full flex flex-col gap-2 min-h-0">
+      {/* 수치 표시 */}
+      <div className="flex items-center gap-3 sm:gap-5 flex-wrap shrink-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm text-gray-500">목표</span>
-          <span className="text-3xl font-bold">{formatCurrency(totalTarget)}</span>
+          <span className="text-xs sm:text-sm text-gray-500">목표</span>
+          <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalTarget)}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-sm text-gray-500">달성</span>
-          <span className="text-3xl font-bold">{formatCurrency(totalActual)}</span>
+          <span className="text-xs sm:text-sm text-gray-500">달성</span>
+          <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalActual)}</span>
         </div>
-        <div className="ml-auto font-bold text-5xl" style={{ color: getAchievementColor(achievementRate) }}>
+        <div className="ml-auto font-bold text-3xl sm:text-4xl lg:text-5xl" style={{ color: getAchievementColor(achievementRate) }}>
           {achievementRate}%
         </div>
       </div>
