@@ -615,55 +615,6 @@ class GoogleSheetsService {
         return r < 0.5 && g < 0.5 && b < 0.5;
       };
 
-      // 디버그: 포맷 데이터가 있는/없는 행 통계 + 어두운 행(avg<0.7) 상세 로깅
-      const getBg = (cell) => {
-        const fmt = cell?.effectiveFormat || cell?.userEnteredFormat;
-        if (!fmt) return null;
-        return fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor || null;
-      };
-      let rowsWithFormat = 0, rowsWithoutFormat = 0, rowsEmpty = 0;
-      let darkLogCount = 0;
-      const avgBuckets = { '<0.3': 0, '0.3-0.5': 0, '0.5-0.7': 0, '0.7-0.9': 0, '>=0.9': 0 };
-      for (let i = 0; i < rowData.length; i++) {
-        const cells = rowData[i]?.values || [];
-        if (cells.length === 0) { rowsEmpty++; continue; }
-        const samples = [cells[0], cells[1], cells[2], cells[3]];
-        const bgs = samples.map(getBg).filter(Boolean);
-        if (bgs.length === 0) { rowsWithoutFormat++; continue; }
-        rowsWithFormat++;
-        const avg = bgs.reduce((s, bg) => s + ((bg.red ?? 0) + (bg.green ?? 0) + (bg.blue ?? 0)) / 3, 0) / bgs.length;
-        if (avg < 0.3) avgBuckets['<0.3']++;
-        else if (avg < 0.5) avgBuckets['0.3-0.5']++;
-        else if (avg < 0.7) avgBuckets['0.5-0.7']++;
-        else if (avg < 0.9) avgBuckets['0.7-0.9']++;
-        else avgBuckets['>=0.9']++;
-
-        if (avg < 0.7 && darkLogCount < 50) {
-          const dateVal = cellValue(cells[0]);
-          const bgSummary = samples.map((c, ci) => {
-            const bg = getBg(c);
-            return bg ? `${ci}:(${(bg.red ?? 0).toFixed(2)},${(bg.green ?? 0).toFixed(2)},${(bg.blue ?? 0).toFixed(2)})` : `${ci}:∅`;
-          }).join(' ');
-          console.log(`[Sheets] 가산 어두운행${i} date=${dateVal} avg=${avg.toFixed(2)} ${bgSummary}`);
-          darkLogCount++;
-        }
-      }
-      console.log(`[Sheets] 가산 배경통계: 빈행=${rowsEmpty}, 포맷없음=${rowsWithoutFormat}, 포맷있음=${rowsWithFormat}, 분포=${JSON.stringify(avgBuckets)}`);
-
-      // 포맷이 전혀 없는 행 중 값이 있는 첫 몇 개 샘플링
-      let noFmtSampleCount = 0;
-      for (let i = 0; i < rowData.length && noFmtSampleCount < 5; i++) {
-        const cells = rowData[i]?.values || [];
-        if (cells.length === 0) continue;
-        const bgs = [cells[0], cells[1], cells[2], cells[3]].map(getBg).filter(Boolean);
-        if (bgs.length > 0) continue; // 포맷 있으면 스킵
-        const vals = cells.slice(0, 7).map(c => cellValue(c));
-        if (vals.some(v => v !== '' && v != null)) {
-          console.log(`[Sheets] 가산 포맷없음 행${i} 값:`, JSON.stringify(vals));
-          noFmtSampleCount++;
-        }
-      }
-
       const dailyTotals = new Map();
       const rowCounts = new Map();
       let parsed = 0, dateFail = 0, countMissing = 0, blackRows = 0, dateRegression = 0;
@@ -731,12 +682,99 @@ class GoogleSheetsService {
       console.log(`[Sheets] 가산 "${tabName}": ${rowData.length}행 읽음, ${parsed}행 파싱, 흑색행=${blackRows}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
-      for (const [date, total] of dailyTotals) {
-        results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
+      // 시험건수는 월별 캘린더 탭에서 별도 파싱 (셀 내 줄바꿈 = 시험 1건)
+      const calendarTestCounts = await this._syncGsTestCountsFromCalendar();
+
+      // 인원수(리스트 탭) + 시험건수(캘린더 탭) 병합
+      const allDates = new Set([...dailyTotals.keys(), ...calendarTestCounts.keys()]);
+      for (const date of allDates) {
+        results.push({
+          date,
+          lab: '가산',
+          subject_count: dailyTotals.get(date) || 0,
+          test_count: calendarTestCounts.get(date) ?? 0,
+        });
       }
     } catch (err) {
       console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
     }
+  }
+
+  // 가산 월별 캘린더 탭(YYYY-MM)에서 시험건수 파싱
+  // 캘린더 구조: 날짜행(M/D...) 바로 아래에 내용행, 셀 내 Alt+Enter로 여러 시험 구분
+  async _syncGsTestCountsFromCalendar() {
+    const sheetId = sheetsConfig.EXTERNAL_GS_SHEET_ID;
+    const testCountsByDate = new Map();
+    if (!sheetId) return testCountsByDate;
+
+    let allTabs;
+    try {
+      const meta = await this.sheets.spreadsheets.get({
+        spreadsheetId: sheetId,
+        fields: 'sheets.properties.title',
+      });
+      allTabs = meta.data.sheets.map(s => s.properties.title);
+    } catch (err) {
+      console.warn('[Sheets] 가산 캘린더 탭 목록 조회 실패:', err.message);
+      return testCountsByDate;
+    }
+
+    const monthlyTabs = allTabs.filter(t => /^\d{4}-\d{2}$/.test(t));
+    console.log(`[Sheets] 가산 월별 캘린더 탭 ${monthlyTabs.length}개: ${monthlyTabs.join(', ')}`);
+    if (monthlyTabs.length === 0) return testCountsByDate;
+
+    let grandTotal = 0;
+    for (const tabName of monthlyTabs) {
+      const [year, month] = tabName.split('-').map(Number);
+      try {
+        const res = await this.sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `'${tabName}'!A:G`,
+          valueRenderOption: 'FORMATTED_VALUE',
+        });
+        const rows = res.data.values || [];
+
+        let tabTotal = 0, tabDays = 0;
+        for (let i = 0; i < rows.length; i++) {
+          const row = rows[i] || [];
+          // 날짜 행 감지: "M/D" 패턴 셀이 3개 이상
+          const dateCells = row.map(cell => {
+            const m = String(cell || '').match(/^\s*(\d{1,2})\/(\d{1,2})/);
+            return m ? { month: parseInt(m[1]), day: parseInt(m[2]) } : null;
+          });
+          if (dateCells.filter(Boolean).length < 3) continue;
+
+          // 다음 행이 내용 행
+          const contentRow = rows[i + 1] || [];
+          for (let col = 0; col < dateCells.length; col++) {
+            const dc = dateCells[col];
+            if (!dc) continue;
+            if (dc.month !== month) continue; // 이전/다음달 날짜 스킵
+            if (dc.day < 1 || dc.day > 31) continue;
+
+            const contentCell = String(contentRow[col] || '');
+            // Alt+Enter(줄바꿈)로 split, 빈 줄/공백 제외
+            const lines = contentCell.split('\n')
+              .map(l => l.trim())
+              .filter(l => l.length > 2); // 1-2자 단일 기호는 제외
+            const count = lines.length;
+            if (count === 0) continue;
+
+            const date = `${year}-${String(month).padStart(2, '0')}-${String(dc.day).padStart(2, '0')}`;
+            testCountsByDate.set(date, (testCountsByDate.get(date) || 0) + count);
+            tabTotal += count;
+            tabDays++;
+          }
+          i++; // 내용 행 건너뛰기
+        }
+        console.log(`[Sheets] 가산 캘린더 "${tabName}": ${rows.length}행, ${tabDays}일자, ${tabTotal}건`);
+        grandTotal += tabTotal;
+      } catch (err) {
+        console.warn(`[Sheets] 가산 캘린더 "${tabName}" 파싱 실패:`, err.message);
+      }
+    }
+    console.log(`[Sheets] 가산 캘린더 시험건수 총합: ${testCountsByDate.size}일, ${grandTotal}건`);
+    return testCountsByDate;
   }
 
   _parseMjTabYear(tabName) {
