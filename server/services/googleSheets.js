@@ -314,7 +314,7 @@ class GoogleSheetsService {
       }
     }
     for (const r of externalRows) {
-      const tc = r.test_count || 1;
+      const tc = r.test_count ?? 1;
       for (let i = 0; i < tc; i++) {
         testEntries.push({ date: r.date, lab: r.lab });
       }
@@ -510,6 +510,7 @@ class GoogleSheetsService {
         for (const row of rows) {
           if (!row || row.length < 3) continue;
           const dateCell = String(row[0] || '').trim();
+          const divisionCell = String(row[1] || '').trim();
           const countCell = String(row[2] || '').trim();
           if (!dateCell || !countCell) continue;
           if (dateCell === '날짜' || countCell === '인원' || countCell === '미정') continue;
@@ -530,7 +531,10 @@ class GoogleSheetsService {
 
           const date = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
           dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-          rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+          // 구분열(B)에 '일정변동'이면 시험건수에서만 제외 (인원수는 포함)
+          if (divisionCell !== '일정변동') {
+            rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+          }
           parsed++;
         }
         console.log(`[Sheets] 문정 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, ${skipped}행 건너뜀, 연도범위=${yearInfo.startYear}~${yearInfo.endYear}`);
@@ -599,8 +603,14 @@ class GoogleSheetsService {
         const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
         if (isNaN(count) || count <= 0) { countMissing++; continue; }
 
+        // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
+        const cCol = String(row[1] || '');
+        const isRevisit = cCol.includes('재방문');
+
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-        rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+        if (!isRevisit) {
+          rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+        }
         parsed++;
       }
 
