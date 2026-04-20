@@ -615,22 +615,30 @@ class GoogleSheetsService {
         return r < 0.5 && g < 0.5 && b < 0.5;
       };
 
-      // 디버그: "어두운" 배경을 가진 행을 모두 출력 (흑색 감지 검증용)
-      // RGB 평균이 0.5 이하이면 어두운 행으로 간주
+      // 디버그: 포맷 데이터가 있는/없는 행 통계 + 어두운 행(avg<0.7) 상세 로깅
       const getBg = (cell) => {
         const fmt = cell?.effectiveFormat || cell?.userEnteredFormat;
         if (!fmt) return null;
         return fmt.backgroundColorStyle?.rgbColor || fmt.backgroundColor || null;
       };
+      let rowsWithFormat = 0, rowsWithoutFormat = 0, rowsEmpty = 0;
       let darkLogCount = 0;
-      for (let i = 0; i < rowData.length && darkLogCount < 30; i++) {
+      const avgBuckets = { '<0.3': 0, '0.3-0.5': 0, '0.5-0.7': 0, '0.7-0.9': 0, '>=0.9': 0 };
+      for (let i = 0; i < rowData.length; i++) {
         const cells = rowData[i]?.values || [];
-        if (cells.length === 0) continue;
+        if (cells.length === 0) { rowsEmpty++; continue; }
         const samples = [cells[0], cells[1], cells[2], cells[3]];
         const bgs = samples.map(getBg).filter(Boolean);
-        if (bgs.length === 0) continue;
+        if (bgs.length === 0) { rowsWithoutFormat++; continue; }
+        rowsWithFormat++;
         const avg = bgs.reduce((s, bg) => s + ((bg.red ?? 0) + (bg.green ?? 0) + (bg.blue ?? 0)) / 3, 0) / bgs.length;
-        if (avg < 0.5) {
+        if (avg < 0.3) avgBuckets['<0.3']++;
+        else if (avg < 0.5) avgBuckets['0.3-0.5']++;
+        else if (avg < 0.7) avgBuckets['0.5-0.7']++;
+        else if (avg < 0.9) avgBuckets['0.7-0.9']++;
+        else avgBuckets['>=0.9']++;
+
+        if (avg < 0.7 && darkLogCount < 50) {
           const dateVal = cellValue(cells[0]);
           const bgSummary = samples.map((c, ci) => {
             const bg = getBg(c);
@@ -638,6 +646,21 @@ class GoogleSheetsService {
           }).join(' ');
           console.log(`[Sheets] 가산 어두운행${i} date=${dateVal} avg=${avg.toFixed(2)} ${bgSummary}`);
           darkLogCount++;
+        }
+      }
+      console.log(`[Sheets] 가산 배경통계: 빈행=${rowsEmpty}, 포맷없음=${rowsWithoutFormat}, 포맷있음=${rowsWithFormat}, 분포=${JSON.stringify(avgBuckets)}`);
+
+      // 포맷이 전혀 없는 행 중 값이 있는 첫 몇 개 샘플링
+      let noFmtSampleCount = 0;
+      for (let i = 0; i < rowData.length && noFmtSampleCount < 5; i++) {
+        const cells = rowData[i]?.values || [];
+        if (cells.length === 0) continue;
+        const bgs = [cells[0], cells[1], cells[2], cells[3]].map(getBg).filter(Boolean);
+        if (bgs.length > 0) continue; // 포맷 있으면 스킵
+        const vals = cells.slice(0, 7).map(c => cellValue(c));
+        if (vals.some(v => v !== '' && v != null)) {
+          console.log(`[Sheets] 가산 포맷없음 행${i} 값:`, JSON.stringify(vals));
+          noFmtSampleCount++;
         }
       }
 
