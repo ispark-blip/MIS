@@ -1,5 +1,6 @@
 const fs = require('fs');
 const sheetsConfig = require('../config/sheets');
+const { labs: LABS_CONFIG } = require('../config/departments');
 
 // 쉼표 포함 문자열/숫자를 안전하게 숫자로 변환
 function toNum(v) {
@@ -321,7 +322,7 @@ class GoogleSheetsService {
 
     if (testEntries.length === 0) return null;
 
-    const labs = ['문정', '가산'];
+    const labs = LABS_CONFIG;
     const result = labs.map(lab => {
       const labEntries = testEntries.filter(e => e.lab === lab);
 
@@ -409,7 +410,7 @@ class GoogleSheetsService {
 
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear);
 
-    const labs = ['문정', '가산'];
+    const labs = LABS_CONFIG;
     return labs.map(lab => {
       const labRows = allEntries.filter(r => r.lab === lab);
 

@@ -6,6 +6,11 @@ export default function DashboardSettingsTab({ settings, onSaved }) {
   const [form, setForm] = useState({ default_lab: '전체', default_year: '', default_quarter: 'Q1' });
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
+  const [labs, setLabs] = useState([]);
+
+  useEffect(() => {
+    api.get('/config/departments').then(r => setLabs(r.data.data?.labs || [])).catch(() => {});
+  }, []);
 
   useEffect(() => {
     if (settings) {
@@ -54,8 +59,7 @@ export default function DashboardSettingsTab({ settings, onSaved }) {
             className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500"
           >
             <option value="전체">전체</option>
-            <option value="문정">문정</option>
-            <option value="가산">가산</option>
+            {labs.map(l => <option key={l} value={l}>{l}</option>)}
           </select>
         </div>
 

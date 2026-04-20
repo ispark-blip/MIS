@@ -66,7 +66,7 @@ router.get('/summary', (req, res) => {
   const monthStart = `${y}-${String(m).padStart(2, '0')}-01`;
   const yearStart = `${y}-01-01`;
 
-  const labsList = ['문정', '가산'];
+  const labsList = labs;
   const summary = labsList.map(lab => {
     const todayCount = db.prepare(
       'SELECT COALESCE(SUM(subject_count), 0) as total FROM daily_subject_counts WHERE date = ? AND lab = ?'

@@ -3,7 +3,9 @@ import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { getDeptColor } from '../../utils/deptColors';
 
-const LAB_COLORS = { '문정': '#14b8a6', '가산': '#6366f1' };
+const LAB_COLOR_MAP = { '문정': '#14b8a6', '가산': '#6366f1' };
+const FALLBACK_COLORS = ['#f59e0b', '#ef4444', '#8b5cf6', '#10b981', '#0ea5e9', '#ec4899'];
+const labColor = (lab, idx) => LAB_COLOR_MAP[lab] || FALLBACK_COLORS[idx % FALLBACK_COLORS.length];
 const fmt = (n) => Number(n || 0).toLocaleString('ko-KR');
 
 export default function SubjectCards({ data }) {
@@ -13,12 +15,14 @@ export default function SubjectCards({ data }) {
 
   return (
     <div className="h-full overflow-auto flex flex-col gap-4">
-      {data.map((lab) => (
-        <div key={lab.lab} className="border rounded-lg p-4" style={{ borderColor: LAB_COLORS[lab.lab] + '40' }}>
+      {data.map((lab, idx) => {
+        const color = labColor(lab.lab, idx);
+        return (
+        <div key={lab.lab} className="border rounded-lg p-4" style={{ borderColor: color + '40' }}>
           {/* 카드 헤더 */}
           <div className="flex items-center justify-between cursor-pointer" onClick={() => setExpanded(expanded === lab.lab ? null : lab.lab)}>
             <div>
-              <h4 className="font-bold text-2xl" style={{ color: LAB_COLORS[lab.lab] }}>{lab.lab}연구소</h4>
+              <h4 className="font-bold text-2xl" style={{ color }}>{lab.lab}연구소</h4>
               <div className="flex items-baseline gap-4 mt-2">
                 <span className="text-4xl font-bold">
                   {fmt(lab.today)}<span className="text-lg text-gray-500 ml-1">명</span>
@@ -32,7 +36,7 @@ export default function SubjectCards({ data }) {
               <div className="w-32 h-14">
                 <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={lab.recentDays || []}>
-                    <Line type="monotone" dataKey="total" stroke={LAB_COLORS[lab.lab]} strokeWidth={2} dot={false} />
+                    <Line type="monotone" dataKey="total" stroke={color} strokeWidth={2} dot={false} />
                   </LineChart>
                 </ResponsiveContainer>
               </div>
@@ -62,7 +66,8 @@ export default function SubjectCards({ data }) {
             </div>
           )}
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 }
