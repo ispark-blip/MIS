@@ -125,7 +125,7 @@ class GoogleSheetsService {
     const departments = Array.from(deptMap.values());
     const totalTarget = departments.reduce((s, d) => s + d.target, 0);
     const totalActual = departments.reduce((s, d) => s + d.actual, 0);
-    const visibleDepts = departments.filter(d => d.name !== '원료개발');
+    const visibleDepts = departments.filter(d => d.name !== '원료개발팀');
 
     return {
       totalTarget,
@@ -161,7 +161,7 @@ class GoogleSheetsService {
       d.actual += r.actual_monthly;
     }
 
-    const departments = Array.from(deptMap.values()).filter(d => d.name !== '원료개발');
+    const departments = Array.from(deptMap.values()).filter(d => d.name !== '원료개발팀');
     return {
       quarter,
       year,
