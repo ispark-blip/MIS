@@ -276,85 +276,18 @@ class GoogleSheetsService {
     return Array.from(map.values());
   }
 
-  // 시험건수 summary - 시험대상자 데이터에서 자동 추출 우선 (행 1개 = 건수 1건)
+  // 시험건수 summary - 시험대상자 자동추출 + 수기 입력 시험건수 병합
   getCachedTestCountsSummary(targetMonth, targetYear, targetDay) {
-    // 시험대상자 데이터에서 시험건수 자동 추출 (우선)
-    const derived = this._deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay);
-    if (derived) return derived;
-
-    // 폴백: 전용 시험건수 시트 (부서별 집계)
-    if (!this.cache.testCounts) return null;
-    const rows = this.transformTestCountsData();
-    if (rows.length === 0) return null;
-
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
-    const deptMap = new Map();
-    for (const r of rows) {
-      if (!r.department) continue;
-      if (!deptMap.has(r.department)) deptMap.set(r.department, { department: r.department, lab: r.lab, rows: [] });
-      deptMap.get(r.department).rows.push(r);
-    }
-
-    const hiddenDepts = getHiddenSet('hidden_test_count_departments');
-    return Array.from(deptMap.values())
-      .filter(({ department }) => !hiddenDepts.has(department))
-      .map(({ department, lab, rows: deptRows }) => {
-      let todayCount = deptRows.filter(r => r.date === today)
-        .reduce((s, r) => s + r.count, 0);
-      let todayDate = today;
-
-      if (!isCurrentMonth && todayCount === 0) {
-        const monthRows = deptRows.filter(r => r.date >= monthStart && r.date <= today);
-        if (monthRows.length > 0) {
-          todayDate = monthRows.reduce((max, r) => r.date > max ? r.date : max, monthRows[0].date);
-          todayCount = monthRows.filter(r => r.date === todayDate).reduce((s, r) => s + r.count, 0);
-        }
-      }
-
-      const monthlyTotal = deptRows.filter(r => r.date >= monthStart && r.date <= today)
-        .reduce((s, r) => s + r.count, 0);
-
-      const annualTotal = deptRows.filter(r => r.date >= yearStart && r.date <= today)
-        .reduce((s, r) => s + r.count, 0);
-
-      const dailyMap = new Map();
-      deptRows
-        .filter(r => {
-          const t = Date.parse(r.date);
-          return !isNaN(t) && t >= thirtyDaysAgoMs && r.date <= today;
-        })
-        .forEach(r => dailyMap.set(r.date, (dailyMap.get(r.date) || 0) + r.count));
-      const recentDays = Array.from(dailyMap.entries())
-        .sort((a, b) => a[0].localeCompare(b[0]))
-        .map(([date, total]) => ({ date, total }));
-
-      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
-    });
-  }
-
-  // 시험대상자 시트에서 시험건수 추출: 인원수가 있는 행 1개 = 시험건수 1건
-  // 매출(부서별 분기 매출)에 등록된 부서 단위로 집계
-  _deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay) {
+    // --- 소스 1: 시험대상자 → 시험건수 자동 추출 (행 1개 = 건수 1건) ---
+    const EXTERNAL_LAB_TO_DEPT = { '가산': '가산 임상팀', '문정': '문정 임상팀' };
+    const derivedEntries = []; // { date, department, lab }
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
-
-    if (internalRows.length === 0 && externalRows.length === 0) return null;
-
-    const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
-
-    // 외부 동기화 (lab만 있고 부서 없음) → 매출 부서로 매핑
-    const EXTERNAL_LAB_TO_DEPT = {
-      '가산': '가산 임상팀',
-      '문정': '문정 임상팀',
-    };
-
-    // 내부 시트: 인원수 > 0인 행 1개 = 시험 1건 (부서 정보 그대로 사용)
-    // 외부 동기화: 일별 test_count(행 수) → lab→매출부서 매핑
-    const testEntries = []; // { date, lab, department }
     for (const r of internalRows) {
       if (r.subject_count > 0 && r.department) {
-        testEntries.push({ date: r.date, lab: r.lab, department: r.department });
+        derivedEntries.push({ date: r.date, lab: r.lab, department: r.department });
       }
     }
     for (const r of externalRows) {
@@ -362,50 +295,74 @@ class GoogleSheetsService {
       if (!dept) continue;
       const tc = r.test_count ?? 1;
       for (let i = 0; i < tc; i++) {
-        testEntries.push({ date: r.date, lab: r.lab, department: dept });
+        derivedEntries.push({ date: r.date, lab: r.lab, department: dept });
       }
     }
 
-    if (testEntries.length === 0) return null;
+    // --- 소스 2: 수기 입력 시험건수 시트 ---
+    const manualRows = this.cache.testCounts ? this.transformTestCountsData() : [];
 
-    // 표시 대상: 매출 데이터의 부서 + (시험엔 있지만 매출엔 없는 부서)
+    if (derivedEntries.length === 0 && manualRows.length === 0) return null;
+
+    // --- 부서 목록 수집 (매출 부서 + 추가 부서) ---
     const salesDepts = this._getUniqueSalesDepartments();
     const known = new Set(salesDepts.map(d => d.name));
-    for (const e of testEntries) {
-      if (!known.has(e.department)) {
+    for (const e of derivedEntries) {
+      if (e.department && !known.has(e.department)) {
         salesDepts.push({ name: e.department, lab: e.lab });
         known.add(e.department);
+      }
+    }
+    for (const r of manualRows) {
+      if (r.department && !known.has(r.department)) {
+        salesDepts.push({ name: r.department, lab: r.lab });
+        known.add(r.department);
       }
     }
 
     const hiddenDepts = getHiddenSet('hidden_test_count_departments');
     const visibleDepts = salesDepts.filter(d => !hiddenDepts.has(d.name));
 
+    // --- 부서별 일별 건수 병합 ---
     const result = visibleDepts.map(({ name: department, lab }) => {
-      const deptEntries = testEntries.filter(e => e.department === department);
-
-      let todayCount = deptEntries.filter(e => e.date === today).length;
-      let todayDate = today;
-
-      if (!isCurrentMonth && todayCount === 0) {
-        const monthEntries = deptEntries.filter(e => e.date >= monthStart && e.date <= today);
-        if (monthEntries.length > 0) {
-          todayDate = monthEntries.reduce((max, e) => e.date > max ? e.date : max, monthEntries[0].date);
-          todayCount = monthEntries.filter(e => e.date === todayDate).length;
+      // 일별 건수 집계 (자동추출: 건수=엔트리 수, 수기: 건수=count 합)
+      const dailyCounts = new Map(); // date → count
+      for (const e of derivedEntries) {
+        if (e.department === department) {
+          dailyCounts.set(e.date, (dailyCounts.get(e.date) || 0) + 1);
+        }
+      }
+      for (const r of manualRows) {
+        if (r.department === department) {
+          dailyCounts.set(r.date, (dailyCounts.get(r.date) || 0) + r.count);
         }
       }
 
-      const monthlyTotal = deptEntries.filter(e => e.date >= monthStart && e.date <= today).length;
-      const annualTotal = deptEntries.filter(e => e.date >= yearStart && e.date <= today).length;
+      let todayCount = dailyCounts.get(today) || 0;
+      let todayDate = today;
 
-      const dailyMap = new Map();
-      deptEntries
-        .filter(e => {
-          const t = Date.parse(e.date);
-          return !isNaN(t) && t >= thirtyDaysAgoMs && e.date <= today;
-        })
-        .forEach(e => dailyMap.set(e.date, (dailyMap.get(e.date) || 0) + 1));
-      const recentDays = Array.from(dailyMap.entries())
+      if (!isCurrentMonth && todayCount === 0) {
+        let latestDate = '';
+        for (const [d, c] of dailyCounts) {
+          if (d >= monthStart && d <= today && c > 0 && d > latestDate) latestDate = d;
+        }
+        if (latestDate) {
+          todayDate = latestDate;
+          todayCount = dailyCounts.get(latestDate) || 0;
+        }
+      }
+
+      let monthlyTotal = 0, annualTotal = 0;
+      const recentMap = new Map();
+      for (const [d, c] of dailyCounts) {
+        if (d >= monthStart && d <= today) monthlyTotal += c;
+        if (d >= yearStart && d <= today) annualTotal += c;
+        const t = Date.parse(d);
+        if (!isNaN(t) && t >= thirtyDaysAgoMs && d <= today) {
+          recentMap.set(d, c);
+        }
+      }
+      const recentDays = Array.from(recentMap.entries())
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
@@ -417,6 +374,7 @@ class GoogleSheetsService {
     }
     return result;
   }
+
 
   // ============ 시험대상자 인원수 (Q4) ============
   async fetchSubjectsData() {
