@@ -69,7 +69,8 @@ router.get('/summary', (req, res) => {
   const monthStart = `${y}-${pad2(m)}-01`;
   const yearStart = `${y}-01-01`;
 
-  const labsList = labs;
+  // 원주는 대시보드 표시에서 제외
+  const labsList = labs.filter(l => l !== '원주');
   const summary = labsList.map(lab => {
     const todayCount = db.prepare(
       'SELECT COALESCE(SUM(subject_count), 0) as total FROM daily_subject_counts WHERE date = ? AND lab = ?'

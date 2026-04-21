@@ -270,7 +270,9 @@ class GoogleSheetsService {
       deptMap.get(key).rows.push(r);
     }
 
-    return Array.from(deptMap.values()).map(({ department, lab, rows: deptRows }) => {
+    return Array.from(deptMap.values())
+      .filter(({ lab }) => lab !== '원주')
+      .map(({ department, lab, rows: deptRows }) => {
       let todayCount = deptRows.filter(r => r.date === today)
         .reduce((s, r) => s + r.count, 0);
       let todayDate = today;
@@ -330,7 +332,8 @@ class GoogleSheetsService {
 
     if (testEntries.length === 0) return null;
 
-    const labs = LABS_CONFIG;
+    // 원주는 대시보드 표시에서 제외
+    const labs = LABS_CONFIG.filter(l => l !== '원주');
     const result = labs.map(lab => {
       const labEntries = testEntries.filter(e => e.lab === lab);
 
@@ -418,7 +421,8 @@ class GoogleSheetsService {
 
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
-    const labs = LABS_CONFIG;
+    // 원주는 대시보드 표시에서 제외
+    const labs = LABS_CONFIG.filter(l => l !== '원주');
     return labs.map(lab => {
       const labRows = allEntries.filter(r => r.lab === lab);
 
