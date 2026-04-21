@@ -36,10 +36,12 @@ const ALLOWED_KEYS = new Set([
   'company_name', 'company_abbr', 'system_title', 'logo_url',
   'default_lab', 'default_year', 'default_quarter',
   // 표시 숨김 (JSON 배열)
-  'hidden_sales_departments', 'hidden_summary_labs',
+  'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
 ]);
 // JSON 배열로 저장되는 키 (최대 길이 완화)
-const JSON_ARRAY_KEYS = new Set(['hidden_sales_departments', 'hidden_summary_labs']);
+const JSON_ARRAY_KEYS = new Set([
+  'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
+]);
 
 // GET /api/settings - 공개 (브랜딩 표시용)
 router.get('/', (req, res) => {

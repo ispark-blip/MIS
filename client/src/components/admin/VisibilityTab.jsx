@@ -15,6 +15,7 @@ function parseJsonArr(v) {
 export default function VisibilityTab({ settings, onSaved }) {
   const [options, setOptions] = useState({ salesDepartments: [], labs: [] });
   const [hiddenSalesDepts, setHiddenSalesDepts] = useState(new Set());
+  const [hiddenTestCountDepts, setHiddenTestCountDepts] = useState(new Set());
   const [hiddenLabs, setHiddenLabs] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
@@ -28,6 +29,7 @@ export default function VisibilityTab({ settings, onSaved }) {
   useEffect(() => {
     if (settings) {
       setHiddenSalesDepts(new Set(parseJsonArr(settings.hidden_sales_departments)));
+      setHiddenTestCountDepts(new Set(parseJsonArr(settings.hidden_test_count_departments)));
       setHiddenLabs(new Set(parseJsonArr(settings.hidden_summary_labs)));
     }
   }, [settings]);
@@ -44,6 +46,7 @@ export default function VisibilityTab({ settings, onSaved }) {
     try {
       const r = await api.put('/settings', {
         hidden_sales_departments: Array.from(hiddenSalesDepts),
+        hidden_test_count_departments: Array.from(hiddenTestCountDepts),
         hidden_summary_labs: Array.from(hiddenLabs),
       });
       onSaved(r.data.data);
@@ -105,8 +108,14 @@ export default function VisibilityTab({ settings, onSaved }) {
       </section>
 
       <section>
-        <h3 className="font-semibold text-sm text-slate-700 mb-2">Q3/Q4 일일 시험건수 · 시험대상자 인원수 표시</h3>
-        <p className="text-xs text-gray-500 mb-3">체크된 연구소만 대시보드에 표시됩니다. 데이터 입력은 숨김 여부와 상관없이 가능합니다.</p>
+        <h3 className="font-semibold text-sm text-slate-700 mb-2">Q3 일일 시험건수 · 부서별 표시</h3>
+        <p className="text-xs text-gray-500 mb-3">체크된 부서만 시험건수 카드에 개별 표시됩니다. 매출 데이터의 부서를 기준으로 합니다.</p>
+        {renderCheckboxList(options.salesDepartments, hiddenTestCountDepts, setHiddenTestCountDepts, '매출 데이터가 아직 로드되지 않았습니다.')}
+      </section>
+
+      <section>
+        <h3 className="font-semibold text-sm text-slate-700 mb-2">Q4 시험대상자 인원수 · 연구소별 표시</h3>
+        <p className="text-xs text-gray-500 mb-3">체크된 연구소만 시험대상자 카드에 표시됩니다. 데이터 입력은 숨김 여부와 상관없이 가능합니다.</p>
         {renderCheckboxList(options.labs, hiddenLabs, setHiddenLabs, '연구소 목록 없음')}
       </section>
 

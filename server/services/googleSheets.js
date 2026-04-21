@@ -265,13 +265,24 @@ class GoogleSheetsService {
     return { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth };
   }
 
+  // 매출 데이터에서 부서 목록(이름+연구소) 추출
+  _getUniqueSalesDepartments() {
+    if (!this.cache.sales) return [];
+    const map = new Map();
+    for (const r of this.transformSalesData()) {
+      if (!r.name) continue;
+      if (!map.has(r.name)) map.set(r.name, { name: r.name, lab: r.lab });
+    }
+    return Array.from(map.values());
+  }
+
   // 시험건수 summary - 시험대상자 데이터에서 자동 추출 우선 (행 1개 = 건수 1건)
   getCachedTestCountsSummary(targetMonth, targetYear, targetDay) {
     // 시험대상자 데이터에서 시험건수 자동 추출 (우선)
     const derived = this._deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay);
     if (derived) return derived;
 
-    // 폴백: 전용 시험건수 시트
+    // 폴백: 전용 시험건수 시트 (부서별 집계)
     if (!this.cache.testCounts) return null;
     const rows = this.transformTestCountsData();
     if (rows.length === 0) return null;
@@ -280,14 +291,14 @@ class GoogleSheetsService {
 
     const deptMap = new Map();
     for (const r of rows) {
-      const key = `${r.lab}|${r.department}`;
-      if (!deptMap.has(key)) deptMap.set(key, { department: r.department, lab: r.lab, rows: [] });
-      deptMap.get(key).rows.push(r);
+      if (!r.department) continue;
+      if (!deptMap.has(r.department)) deptMap.set(r.department, { department: r.department, lab: r.lab, rows: [] });
+      deptMap.get(r.department).rows.push(r);
     }
 
-    const hiddenLabs = getHiddenSet('hidden_summary_labs');
+    const hiddenDepts = getHiddenSet('hidden_test_count_departments');
     return Array.from(deptMap.values())
-      .filter(({ lab }) => !hiddenLabs.has(lab))
+      .filter(({ department }) => !hiddenDepts.has(department))
       .map(({ department, lab, rows: deptRows }) => {
       let todayCount = deptRows.filter(r => r.date === today)
         .reduce((s, r) => s + r.count, 0);
@@ -323,6 +334,7 @@ class GoogleSheetsService {
   }
 
   // 시험대상자 시트에서 시험건수 추출: 인원수가 있는 행 1개 = 시험건수 1건
+  // 매출(부서별 분기 매출)에 등록된 부서 단위로 집계
   _deriveTestCountsFromSubjects(targetMonth, targetYear, targetDay) {
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
@@ -331,44 +343,63 @@ class GoogleSheetsService {
 
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
-    // 내부 시트: 인원수 > 0인 행 1개 = 시험 1건
-    // 외부 동기화: 일별 test_count (행 수) 이미 집계됨
-    const testEntries = [];
+    // 외부 동기화 (lab만 있고 부서 없음) → 매출 부서로 매핑
+    const EXTERNAL_LAB_TO_DEPT = {
+      '가산': '가산 임상팀',
+      '문정': '문정 임상팀',
+    };
+
+    // 내부 시트: 인원수 > 0인 행 1개 = 시험 1건 (부서 정보 그대로 사용)
+    // 외부 동기화: 일별 test_count(행 수) → lab→매출부서 매핑
+    const testEntries = []; // { date, lab, department }
     for (const r of internalRows) {
-      if (r.subject_count > 0) {
-        testEntries.push({ date: r.date, lab: r.lab });
+      if (r.subject_count > 0 && r.department) {
+        testEntries.push({ date: r.date, lab: r.lab, department: r.department });
       }
     }
     for (const r of externalRows) {
+      const dept = EXTERNAL_LAB_TO_DEPT[r.lab];
+      if (!dept) continue;
       const tc = r.test_count ?? 1;
       for (let i = 0; i < tc; i++) {
-        testEntries.push({ date: r.date, lab: r.lab });
+        testEntries.push({ date: r.date, lab: r.lab, department: dept });
       }
     }
 
     if (testEntries.length === 0) return null;
 
-    const hiddenLabs = getHiddenSet('hidden_summary_labs');
-    const labs = LABS_CONFIG.filter(l => !hiddenLabs.has(l));
-    const result = labs.map(lab => {
-      const labEntries = testEntries.filter(e => e.lab === lab);
+    // 표시 대상: 매출 데이터의 부서 + (시험엔 있지만 매출엔 없는 부서)
+    const salesDepts = this._getUniqueSalesDepartments();
+    const known = new Set(salesDepts.map(d => d.name));
+    for (const e of testEntries) {
+      if (!known.has(e.department)) {
+        salesDepts.push({ name: e.department, lab: e.lab });
+        known.add(e.department);
+      }
+    }
 
-      let todayCount = labEntries.filter(e => e.date === today).length;
+    const hiddenDepts = getHiddenSet('hidden_test_count_departments');
+    const visibleDepts = salesDepts.filter(d => !hiddenDepts.has(d.name));
+
+    const result = visibleDepts.map(({ name: department, lab }) => {
+      const deptEntries = testEntries.filter(e => e.department === department);
+
+      let todayCount = deptEntries.filter(e => e.date === today).length;
       let todayDate = today;
 
       if (!isCurrentMonth && todayCount === 0) {
-        const monthEntries = labEntries.filter(e => e.date >= monthStart && e.date <= today);
+        const monthEntries = deptEntries.filter(e => e.date >= monthStart && e.date <= today);
         if (monthEntries.length > 0) {
           todayDate = monthEntries.reduce((max, e) => e.date > max ? e.date : max, monthEntries[0].date);
           todayCount = monthEntries.filter(e => e.date === todayDate).length;
         }
       }
 
-      const monthlyTotal = labEntries.filter(e => e.date >= monthStart && e.date <= today).length;
-      const annualTotal = labEntries.filter(e => e.date >= yearStart && e.date <= today).length;
+      const monthlyTotal = deptEntries.filter(e => e.date >= monthStart && e.date <= today).length;
+      const annualTotal = deptEntries.filter(e => e.date >= yearStart && e.date <= today).length;
 
       const dailyMap = new Map();
-      labEntries
+      deptEntries
         .filter(e => {
           const t = Date.parse(e.date);
           return !isNaN(t) && t >= thirtyDaysAgoMs && e.date <= today;
@@ -378,11 +409,11 @@ class GoogleSheetsService {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      return { department: lab, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
+      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
     });
 
     if (targetMonth) {
-      console.log(`[Sheets] 시험건수(대상자→건수 자동추출) ${targetYear||'?'}년${targetMonth}월: ${result.map(r => `${r.lab}=${r.monthlyTotal}건`).join(', ')}`);
+      console.log(`[Sheets] 시험건수(부서별) ${targetYear||'?'}년${targetMonth}월: ${result.map(r => `${r.department}=${r.monthlyTotal}건`).join(', ')}`);
     }
     return result;
   }
