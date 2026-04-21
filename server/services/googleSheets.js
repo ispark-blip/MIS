@@ -125,12 +125,13 @@ class GoogleSheetsService {
     const departments = Array.from(deptMap.values());
     const totalTarget = departments.reduce((s, d) => s + d.target, 0);
     const totalActual = departments.reduce((s, d) => s + d.actual, 0);
+    const visibleDepts = departments.filter(d => d.name !== '원료개발');
 
     return {
       totalTarget,
       totalActual,
       achievementRate: totalTarget > 0 ? Math.round((totalActual / totalTarget) * 1000) / 10 : 0,
-      departments: departments.map(d => ({
+      departments: visibleDepts.map(d => ({
         name: d.name,
         lab: d.lab,
         actual: d.actual,
@@ -160,7 +161,7 @@ class GoogleSheetsService {
       d.actual += r.actual_monthly;
     }
 
-    const departments = Array.from(deptMap.values());
+    const departments = Array.from(deptMap.values()).filter(d => d.name !== '원료개발');
     return {
       quarter,
       year,
