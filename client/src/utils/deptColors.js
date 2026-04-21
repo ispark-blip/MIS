@@ -13,32 +13,27 @@ export const DEPT_COLORS = {
   '특수시험팀': '#6366f1',
 };
 
-const COLOR_POOL = [
-  '#3b82f6', '#14b8a6', '#8b5cf6', '#f59e0b', '#ef4444',
-  '#6366f1', '#06b6d4', '#f97316', '#ec4899', '#84cc16',
-  '#a855f7', '#0ea5e9', '#d946ef', '#10b981', '#f43f5e',
-  '#78716c', '#0d9488', '#7c3aed', '#e11d48', '#ca8a04',
+// 신규 부서용 색상 풀 (DEPT_COLORS와 중복되지 않는 색상)
+const EXTRA_COLOR_POOL = [
+  '#06b6d4', '#f97316', '#ec4899', '#84cc16', '#a855f7',
+  '#0ea5e9', '#d946ef', '#10b981', '#f43f5e', '#78716c',
+  '#0d9488', '#7c3aed', '#e11d48', '#ca8a04', '#0369a1',
+  '#be185d', '#15803d', '#7e22ce', '#b91c1c', '#a16207',
 ];
 
-const usedColorsInSession = new Set();
-const dynamicAssignments = {};
-
-export function getDeptColor(name, _fallbackIndex = 0) {
-  if (DEPT_COLORS[name]) return DEPT_COLORS[name];
-  if (dynamicAssignments[name]) return dynamicAssignments[name];
-
-  const taken = new Set([
-    ...Object.values(DEPT_COLORS),
-    ...usedColorsInSession,
-  ]);
-  const available = COLOR_POOL.find(c => !taken.has(c));
-  const color = available || COLOR_POOL[Object.keys(dynamicAssignments).length % COLOR_POOL.length];
-
-  dynamicAssignments[name] = color;
-  usedColorsInSession.add(color);
-  return color;
+// 부서명 → 결정적 해시. 호출 순서/시점에 무관하게 항상 같은 색을 반환.
+function hashString(s) {
+  let h = 0;
+  for (let i = 0; i < s.length; i++) {
+    h = ((h << 5) - h) + s.charCodeAt(i);
+    h |= 0;
+  }
+  return Math.abs(h);
 }
 
-export function getDeptColors(deptNames) {
-  return deptNames.map((name, i) => getDeptColor(name, i));
+export function getDeptColor(name) {
+  if (DEPT_COLORS[name]) return DEPT_COLORS[name];
+  if (!name) return EXTRA_COLOR_POOL[0];
+  const idx = hashString(name) % EXTRA_COLOR_POOL.length;
+  return EXTRA_COLOR_POOL[idx];
 }
