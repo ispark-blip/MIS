@@ -35,7 +35,11 @@ function setSetting(key, value, employee_id) {
 const ALLOWED_KEYS = new Set([
   'company_name', 'company_abbr', 'system_title', 'logo_url',
   'default_lab', 'default_year', 'default_quarter',
+  // 표시 숨김 (JSON 배열)
+  'hidden_sales_departments', 'hidden_summary_labs',
 ]);
+// JSON 배열로 저장되는 키 (최대 길이 완화)
+const JSON_ARRAY_KEYS = new Set(['hidden_sales_departments', 'hidden_summary_labs']);
 
 // GET /api/settings - 공개 (브랜딩 표시용)
 router.get('/', (req, res) => {
@@ -50,10 +54,22 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
 
   for (const [k, v] of Object.entries(body)) {
     if (!ALLOWED_KEYS.has(k)) continue;
-    if (typeof v !== 'string' && v !== null && typeof v !== 'number') continue;
-    const strVal = v == null ? '' : String(v);
-    if (strVal.length > 200) {
-      return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 200자 이내여야 합니다.` } });
+
+    let strVal;
+    if (JSON_ARRAY_KEYS.has(k)) {
+      // 배열만 허용, JSON 문자열로 저장
+      if (!Array.isArray(v)) continue;
+      const sanitized = v.filter(x => typeof x === 'string').map(x => x.trim()).filter(Boolean);
+      strVal = JSON.stringify(sanitized);
+      if (strVal.length > 2000) {
+        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 2000자 이내여야 합니다.` } });
+      }
+    } else {
+      if (typeof v !== 'string' && v !== null && typeof v !== 'number') continue;
+      strVal = v == null ? '' : String(v);
+      if (strVal.length > 200) {
+        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 200자 이내여야 합니다.` } });
+      }
     }
     setSetting(k, strVal, employee_id);
     updated[k] = strVal;
@@ -61,6 +77,21 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
 
   logAccess(req, 'settings_update', `설정 변경: ${Object.keys(updated).join(', ')}`);
   res.json({ success: true, data: getAllSettings() });
+});
+
+// GET /api/settings/filter-options - 관리자만. 가시성 설정 UI용 부서/연구소 목록
+router.get('/filter-options', requireAuth, requireRole('admin'), (req, res) => {
+  const { labs: LABS } = require('../config/departments');
+  const sheetsService = req.app.get('sheetsService');
+  let salesDepartments = [];
+  if (sheetsService) {
+    const set = new Set();
+    for (const r of sheetsService.transformSalesData()) {
+      if (r.name) set.add(r.name);
+    }
+    salesDepartments = Array.from(set).sort();
+  }
+  res.json({ success: true, data: { salesDepartments, labs: LABS } });
 });
 
 // 로고 업로드 (multer - memoryStorage 후 직접 저장)

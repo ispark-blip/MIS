@@ -2,15 +2,17 @@ import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import api from '../utils/api';
-import { ArrowLeft, Settings, Users, Sliders, FilePlus } from 'lucide-react';
+import { ArrowLeft, Settings, Users, Sliders, FilePlus, Eye } from 'lucide-react';
 import BrandingTab from '../components/admin/BrandingTab';
 import UsersTab from '../components/admin/UsersTab';
 import DashboardSettingsTab from '../components/admin/DashboardSettingsTab';
 import DataInputTab from '../components/admin/DataInputTab';
+import VisibilityTab from '../components/admin/VisibilityTab';
 
 const TABS = [
   { key: 'branding', label: '브랜딩', icon: Settings },
   { key: 'dashboard', label: '대시보드 설정', icon: Sliders },
+  { key: 'visibility', label: '표시 설정', icon: Eye },
   { key: 'users', label: '사용자 관리', icon: Users },
   { key: 'data', label: '데이터 입력', icon: FilePlus },
 ];
@@ -77,6 +79,7 @@ export default function AdminPage() {
       <main className="flex-1 p-6 max-w-5xl w-full mx-auto">
         {tab === 'branding' && <BrandingTab settings={settings} onSaved={setSettings} />}
         {tab === 'dashboard' && <DashboardSettingsTab settings={settings} onSaved={setSettings} />}
+        {tab === 'visibility' && <VisibilityTab settings={settings} onSaved={setSettings} />}
         {tab === 'users' && <UsersTab />}
         {tab === 'data' && <DataInputTab />}
       </main>

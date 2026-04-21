@@ -1,6 +1,19 @@
 const fs = require('fs');
 const sheetsConfig = require('../config/sheets');
 const { labs: LABS_CONFIG } = require('../config/departments');
+const db = require('../config/database');
+
+// app_settings에서 숨김 대상 Set 반환 (JSON 배열 디코드)
+function getHiddenSet(key) {
+  try {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key);
+    if (!row || !row.value) return new Set();
+    const arr = JSON.parse(row.value);
+    return Array.isArray(arr) ? new Set(arr) : new Set();
+  } catch {
+    return new Set();
+  }
+}
 
 // 쉼표 포함 문자열/숫자를 안전하게 숫자로 변환
 function toNum(v) {
@@ -125,7 +138,8 @@ class GoogleSheetsService {
     const departments = Array.from(deptMap.values());
     const totalTarget = departments.reduce((s, d) => s + d.target, 0);
     const totalActual = departments.reduce((s, d) => s + d.actual, 0);
-    const visibleDepts = departments.filter(d => d.name !== '원료개발팀');
+    const hiddenDepts = getHiddenSet('hidden_sales_departments');
+    const visibleDepts = departments.filter(d => !hiddenDepts.has(d.name));
 
     return {
       totalTarget,
@@ -161,7 +175,8 @@ class GoogleSheetsService {
       d.actual += r.actual_monthly;
     }
 
-    const departments = Array.from(deptMap.values()).filter(d => d.name !== '원료개발팀');
+    const hiddenDepts = getHiddenSet('hidden_sales_departments');
+    const departments = Array.from(deptMap.values()).filter(d => !hiddenDepts.has(d.name));
     return {
       quarter,
       year,
@@ -270,8 +285,9 @@ class GoogleSheetsService {
       deptMap.get(key).rows.push(r);
     }
 
+    const hiddenLabs = getHiddenSet('hidden_summary_labs');
     return Array.from(deptMap.values())
-      .filter(({ lab }) => lab !== '원주')
+      .filter(({ lab }) => !hiddenLabs.has(lab))
       .map(({ department, lab, rows: deptRows }) => {
       let todayCount = deptRows.filter(r => r.date === today)
         .reduce((s, r) => s + r.count, 0);
@@ -332,8 +348,8 @@ class GoogleSheetsService {
 
     if (testEntries.length === 0) return null;
 
-    // 원주는 대시보드 표시에서 제외
-    const labs = LABS_CONFIG.filter(l => l !== '원주');
+    const hiddenLabs = getHiddenSet('hidden_summary_labs');
+    const labs = LABS_CONFIG.filter(l => !hiddenLabs.has(l));
     const result = labs.map(lab => {
       const labEntries = testEntries.filter(e => e.lab === lab);
 
@@ -421,8 +437,8 @@ class GoogleSheetsService {
 
     const { today, monthStart, yearStart, thirtyDaysAgoMs, isCurrentMonth } = this._computeDateBounds(targetMonth, targetYear, targetDay);
 
-    // 원주는 대시보드 표시에서 제외
-    const labs = LABS_CONFIG.filter(l => l !== '원주');
+    const hiddenLabs = getHiddenSet('hidden_summary_labs');
+    const labs = LABS_CONFIG.filter(l => !hiddenLabs.has(l));
     return labs.map(lab => {
       const labRows = allEntries.filter(r => r.lab === lab);
 

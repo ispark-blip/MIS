@@ -69,8 +69,16 @@ router.get('/summary', (req, res) => {
   const monthStart = `${y}-${pad2(m)}-01`;
   const yearStart = `${y}-01-01`;
 
-  // 원주는 대시보드 표시에서 제외
-  const labsList = labs.filter(l => l !== '원주');
+  // 숨김 연구소는 app_settings의 hidden_summary_labs에서 관리
+  let hiddenLabs = new Set();
+  try {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('hidden_summary_labs');
+    if (row?.value) {
+      const arr = JSON.parse(row.value);
+      if (Array.isArray(arr)) hiddenLabs = new Set(arr);
+    }
+  } catch {}
+  const labsList = labs.filter(l => !hiddenLabs.has(l));
   const summary = labsList.map(lab => {
     const todayCount = db.prepare(
       'SELECT COALESCE(SUM(subject_count), 0) as total FROM daily_subject_counts WHERE date = ? AND lab = ?'
