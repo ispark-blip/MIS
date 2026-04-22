@@ -8,6 +8,20 @@ function getAchievementColor(rate) {
   return '#ef4444';
 }
 
+function DonutCenterLabel({ viewBox, achievementRate }) {
+  const { cx, cy } = viewBox;
+  return (
+    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
+      <tspan x={cx} dy="-0.1em" fontSize="clamp(28px, 4vw, 56px)" fontWeight="800" fill={getAchievementColor(achievementRate)}>
+        {achievementRate}%
+      </tspan>
+      <tspan x={cx} dy="1.6em" fontSize="clamp(11px, 1.2vw, 16px)" fill="#94a3b8">
+        목표달성률
+      </tspan>
+    </text>
+  );
+}
+
 export default function SalesDonut({ data }) {
   if (!data || !Array.isArray(data.departments)) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
@@ -30,26 +44,33 @@ export default function SalesDonut({ data }) {
       {/* 수치 표시 */}
       <div className="flex items-center gap-3 sm:gap-5 flex-wrap shrink-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-xs sm:text-sm text-gray-500">목표</span>
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalTarget)}</span>
+          <span className="text-sm sm:text-base text-gray-500">목표</span>
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">{formatCurrency(totalTarget)}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-xs sm:text-sm text-gray-500">달성</span>
-          <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalActual)}</span>
-        </div>
-        <div className="ml-auto font-bold text-3xl sm:text-4xl lg:text-5xl" style={{ color: getAchievementColor(achievementRate) }}>
-          {achievementRate}%
+          <span className="text-sm sm:text-base text-gray-500">달성</span>
+          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">{formatCurrency(totalActual)}</span>
         </div>
       </div>
 
-      {/* 도넛 차트 */}
+      {/* 도넛 차트 + 바 차트 */}
       <div className="flex-1 min-h-0 flex items-center">
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius="55%" outerRadius="80%" startAngle={90} endAngle={-270}>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                cx="50%"
+                cy="50%"
+                innerRadius="50%"
+                outerRadius="85%"
+                startAngle={90}
+                endAngle={-270}
+              >
                 <Cell fill={getAchievementColor(achievementRate)} />
                 <Cell fill="#e2e8f0" />
+                <LabelList content={<DonutCenterLabel achievementRate={achievementRate} />} position="center" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
@@ -58,16 +79,16 @@ export default function SalesDonut({ data }) {
         {/* 부서별 가로 바 + 금액 표시 */}
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 55, top: 5, bottom: 5 }}>
+            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 65, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={65} tick={{ fontSize: 13 }} />
+              <YAxis type="category" dataKey="name" width={75} tick={{ fontSize: 15, fontWeight: 600 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="right"
-                  style={{ fontSize: 14, fill: '#1e293b', fontWeight: 700 }}
+                  style={{ fontSize: 16, fill: '#1e293b', fontWeight: 700 }}
                 />
               </Bar>
             </BarChart>

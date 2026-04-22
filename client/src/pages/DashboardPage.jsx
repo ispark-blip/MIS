@@ -60,7 +60,7 @@ export default function DashboardPage() {
     <div className="min-h-screen md:h-screen flex flex-col bg-gray-50">
       <Header onLogout={logout} />
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 auto-rows-[minmax(60vh,1fr)] md:grid-rows-[1fr_1fr] md:auto-rows-auto gap-0 bg-slate-700">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 auto-rows-[minmax(60vh,1fr)] md:grid-rows-[3fr_2fr] md:auto-rows-auto gap-0 bg-slate-700">
         {/* Q1: 전사 목표 vs 누적 */}
         <section className="bg-gray-50 border-b-[5px] md:border-r-[5px] md:border-b-[5px] border-slate-700 flex flex-col min-h-0">
           <div className="bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 border-b border-gray-200 shrink-0">
