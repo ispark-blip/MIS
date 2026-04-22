@@ -11,14 +11,16 @@ function getAchievementColor(rate) {
 function DonutCenterLabel({ viewBox, achievementRate }) {
   const { cx, cy } = viewBox;
   return (
-    <text x={cx} y={cy} textAnchor="middle" dominantBaseline="central">
-      <tspan x={cx} dy="-0.1em" fontSize="clamp(28px, 4vw, 56px)" fontWeight="800" fill={getAchievementColor(achievementRate)}>
+    <g>
+      <text x={cx} y={cy - 8} textAnchor="middle" dominantBaseline="central"
+        fontSize="clamp(32px, 4.5vw, 60px)" fontWeight="800" fill={getAchievementColor(achievementRate)}>
         {achievementRate}%
-      </tspan>
-      <tspan x={cx} dy="1.6em" fontSize="clamp(11px, 1.2vw, 16px)" fill="#94a3b8">
+      </text>
+      <text x={cx} y={cy + 30} textAnchor="middle" dominantBaseline="central"
+        fontSize="clamp(12px, 1.2vw, 16px)" fill="#94a3b8">
         목표달성률
-      </tspan>
-    </text>
+      </text>
+    </g>
   );
 }
 
@@ -44,12 +46,12 @@ export default function SalesDonut({ data }) {
       {/* 수치 표시 */}
       <div className="flex items-center gap-3 sm:gap-5 flex-wrap shrink-0">
         <div className="flex items-baseline gap-2">
-          <span className="text-sm sm:text-base text-gray-500">목표</span>
-          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">{formatCurrency(totalTarget)}</span>
+          <span className="text-base sm:text-lg text-gray-500">목표</span>
+          <span className="text-3xl sm:text-4xl lg:text-5xl font-bold">{formatCurrency(totalTarget)}</span>
         </div>
         <div className="flex items-baseline gap-2">
-          <span className="text-sm sm:text-base text-gray-500">달성</span>
-          <span className="text-2xl sm:text-3xl lg:text-4xl font-bold">{formatCurrency(totalActual)}</span>
+          <span className="text-base sm:text-lg text-gray-500">달성</span>
+          <span className="text-3xl sm:text-4xl lg:text-5xl font-bold">{formatCurrency(totalActual)}</span>
         </div>
       </div>
 
@@ -79,16 +81,16 @@ export default function SalesDonut({ data }) {
         {/* 부서별 가로 바 + 금액 표시 */}
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 65, top: 5, bottom: 5 }}>
+            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 75, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={75} tick={{ fontSize: 15, fontWeight: 600 }} />
+              <YAxis type="category" dataKey="name" width={85} tick={{ fontSize: 17, fontWeight: 600 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="right"
-                  style={{ fontSize: 16, fill: '#1e293b', fontWeight: 700 }}
+                  style={{ fontSize: 18, fill: '#1e293b', fontWeight: 700 }}
                 />
               </Bar>
             </BarChart>
