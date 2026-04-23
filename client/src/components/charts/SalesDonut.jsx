@@ -9,17 +9,20 @@ function getAchievementColor(rate) {
 }
 
 function DonutCenterLabel({ viewBox, achievementRate }) {
-  const { cx, cy } = viewBox;
+  const { cx, cy, innerRadius } = viewBox;
+  const r = innerRadius || 80;
+  const pctSize = Math.max(16, Math.min(r * 0.48, 44));
+  const subSize = Math.max(9, Math.min(r * 0.15, 14));
   return (
     <g>
-      <text x={cx} y={cy - 6} textAnchor="middle" dominantBaseline="central"
-        fontSize="clamp(34px, 4.5vw, 62px)" fontWeight="700" fill={getAchievementColor(achievementRate)}
+      <text x={cx} y={cy - subSize * 0.4} textAnchor="middle" dominantBaseline="central"
+        fontSize={pctSize} fontWeight="700" fill={getAchievementColor(achievementRate)}
         style={{ letterSpacing: '-0.02em' }}>
         {achievementRate}%
       </text>
-      <text x={cx} y={cy + 28} textAnchor="middle" dominantBaseline="central"
-        fontSize="clamp(11px, 1vw, 14px)" fontWeight="500" fill="#94a3b8">
-        달성률
+      <text x={cx} y={cy + pctSize * 0.55} textAnchor="middle" dominantBaseline="central"
+        fontSize={subSize} fontWeight="500" fill="#94a3b8">
+        목표달성률
       </text>
     </g>
   );
@@ -47,14 +50,14 @@ export default function SalesDonut({ data }) {
       {/* 수치 표시 */}
       <div className="flex items-end gap-6 sm:gap-8 shrink-0">
         <div>
-          <span className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wider">목표</span>
-          <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 leading-tight tracking-tight">
+          <span className="text-sm sm:text-base font-medium text-slate-400 tracking-wider">목표</span>
+          <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight tracking-tight">
             {formatCurrency(totalTarget)}
           </div>
         </div>
         <div>
-          <span className="text-xs sm:text-sm font-medium text-slate-400 uppercase tracking-wider">달성</span>
-          <div className="text-3xl sm:text-4xl lg:text-5xl font-bold text-slate-800 leading-tight tracking-tight">
+          <span className="text-sm sm:text-base font-medium text-slate-400 tracking-wider">달성</span>
+          <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight tracking-tight">
             {formatCurrency(totalActual)}
           </div>
         </div>
@@ -70,8 +73,8 @@ export default function SalesDonut({ data }) {
                 dataKey="value"
                 cx="50%"
                 cy="50%"
-                innerRadius="48%"
-                outerRadius="84%"
+                innerRadius="44%"
+                outerRadius="90%"
                 startAngle={90}
                 endAngle={-270}
                 stroke="none"
