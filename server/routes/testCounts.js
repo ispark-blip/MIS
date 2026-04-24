@@ -20,6 +20,38 @@ router.get('/summary', (req, res) => {
   res.json({ success: true, data: [], meta: { source: 'sqlite' } });
 });
 
+// GET /api/test-counts/debug - 데이터 소스별 원본 확인 (공개)
+router.get('/debug', (req, res) => {
+  const { lab: filterLab, month, year } = req.query;
+  const sheetsService = req.app.get('sheetsService');
+  if (!sheetsService) return res.json({ success: false, error: 'sheetsService 없음' });
+
+  const internalRows = sheetsService.transformSubjectsData();
+  const externalRows = sheetsService.cache.externalSubjects || [];
+  const manualRows = sheetsService.cache.testCounts ? sheetsService.transformTestCountsData() : [];
+
+  const y = parseInt(year) || new Date().getFullYear();
+  const m = parseInt(month) || (new Date().getMonth() + 1);
+  const prefix = `${y}-${String(m).padStart(2, '0')}`;
+  const byMonth = (rows) => rows.filter(r => r.date && r.date.startsWith(prefix));
+  const byLab = (rows) => filterLab ? rows.filter(r => r.lab === filterLab) : rows;
+
+  const externalLabs = new Set(externalRows.map(r => r.lab));
+  const intFiltered = byLab(byMonth(internalRows)).filter(r => !externalLabs.has(r.lab));
+  const extFiltered = byLab(byMonth(externalRows));
+  const manFiltered = byLab(byMonth(manualRows));
+
+  res.json({
+    success: true,
+    lab: filterLab || '전체',
+    period: prefix,
+    externalSyncLabs: [...externalLabs],
+    internal_derived: { count: intFiltered.length, note: '내부 시트에서 추출 (행 1개=1건)' },
+    external_derived: extFiltered.map(r => ({ date: r.date, lab: r.lab, test_count: r.test_count, subject_count: r.subject_count })),
+    manual: { count: manFiltered.length, total: manFiltered.reduce((s, r) => s + (r.count || 0), 0) },
+  });
+});
+
 // GET /api/test-counts - 월간 목록 (공개)
 router.get('/', (req, res) => {
   const { month, year, lab = '전체', test_type } = req.query;

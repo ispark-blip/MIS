@@ -113,6 +113,7 @@ router.get('/debug', (req, res) => {
 
   const internalRows = sheetsService.transformSubjectsData();
   const externalRows = sheetsService.cache.externalSubjects || [];
+  const externalLabs = new Set(externalRows.map(r => r.lab));
 
   const y = parseInt(year) || new Date().getFullYear();
   const m = parseInt(month) || (new Date().getMonth() + 1);
@@ -123,6 +124,7 @@ router.get('/debug', (req, res) => {
 
   const intFiltered = filterByLab(filterByMonth(internalRows));
   const extFiltered = filterByLab(filterByMonth(externalRows));
+  const useExternal = filterLab ? externalLabs.has(filterLab) : false;
 
   const intByDate = {};
   intFiltered.forEach(r => { intByDate[r.date] = (intByDate[r.date] || 0) + r.subject_count; });
@@ -134,16 +136,18 @@ router.get('/debug', (req, res) => {
     date: d,
     internal: intByDate[d] || 0,
     external: extByDate[d] || 0,
-    total: (intByDate[d] || 0) + (extByDate[d] || 0),
+    used: useExternal ? (extByDate[d] || 0) : (intByDate[d] || 0),
   }));
 
   res.json({
     success: true,
     lab: filterLab || '전체',
     period: prefix,
+    externalSyncLabs: [...externalLabs],
+    activeSource: useExternal ? '외부동기화만 사용 (내부 제외)' : '내부시트 사용',
     internal: { count: intFiltered.length, total: intFiltered.reduce((s, r) => s + r.subject_count, 0) },
     external: { count: extFiltered.length, total: extFiltered.reduce((s, r) => s + r.subject_count, 0) },
-    combined: { total: merged.reduce((s, r) => s + r.total, 0) },
+    usedTotal: merged.reduce((s, r) => s + r.used, 0),
     daily: merged,
   });
 });

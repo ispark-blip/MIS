@@ -285,8 +285,10 @@ class GoogleSheetsService {
     const derivedEntries = []; // { date, department, lab }
     const internalRows = this.cache.subjects ? this.transformSubjectsData() : [];
     const externalRows = this.cache.externalSubjects || [];
+    // 외부 동기화가 있는 연구소는 내부 데이터에서 시험건수 추출 제외 (이중 집계 방지)
+    const externalLabs = new Set(externalRows.map(r => r.lab));
     for (const r of internalRows) {
-      if (r.subject_count > 0 && r.department) {
+      if (r.subject_count > 0 && r.department && !externalLabs.has(r.lab)) {
         derivedEntries.push({ date: r.date, lab: r.lab, department: r.department });
       }
     }
@@ -419,8 +421,12 @@ class GoogleSheetsService {
       return null;
     }
 
+    // 외부 동기화가 있는 연구소는 내부 데이터 제외 (이중 집계 방지)
+    const externalLabs = new Set(externalRows.map(r => r.lab));
     const allEntries = [
-      ...internalRows.map(r => ({ date: r.date, lab: r.lab, department: r.department, count: r.subject_count })),
+      ...internalRows
+        .filter(r => !externalLabs.has(r.lab))
+        .map(r => ({ date: r.date, lab: r.lab, department: r.department, count: r.subject_count })),
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
@@ -429,7 +435,8 @@ class GoogleSheetsService {
         const intCount = internalRows.filter(r => r.lab === lab).length;
         const extCount = externalRows.filter(r => r.lab === lab).length;
         if (intCount > 0 || extCount > 0) {
-          console.log(`[Sheets] 시험대상자 ${lab}: 내부=${intCount}건, 외부=${extCount}건`);
+          const used = externalLabs.has(lab) ? '외부만' : '내부만';
+          console.log(`[Sheets] 시험대상자 ${lab}: 내부=${intCount}건, 외부=${extCount}건 → ${used} 사용`);
         }
       }
     }
