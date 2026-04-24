@@ -1,11 +1,10 @@
 import { defineConfig } from 'vite';
 import react from '@vitejs/plugin-react';
-import tailwindcss from '@tailwindcss/vite';
 
 export default defineConfig({
-  plugins: [react(), tailwindcss()],
+  plugins: [react()],
   server: {
-    host: true, // 0.0.0.0 바인딩 → 로컬 네트워크의 다른 기기에서 접속 가능
+    host: true,
     port: 5173,
     proxy: {
       '/api': {
@@ -20,5 +19,6 @@ export default defineConfig({
   },
   build: {
     outDir: 'dist',
+    target: 'es2015',
   },
 });
