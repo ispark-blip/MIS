@@ -3,22 +3,22 @@ import { formatCurrency } from '../../utils/formatCurrency';
 import { getDeptColor } from '../../utils/deptColors';
 
 function getAchievementColor(rate) {
-  if (rate >= 80) return '#16a34a';
-  if (rate >= 50) return '#ca8a04';
-  return '#dc2626';
+  if (rate >= 80) return '#22c55e';
+  if (rate >= 50) return '#eab308';
+  return '#ef4444';
 }
 
 function DonutCenterLabel({ viewBox, achievementRate }) {
   if (!viewBox) return null;
-  const { cx, cy, innerRadius } = viewBox;
-  const r = innerRadius || 80;
-  const pctSize = Math.max(16, Math.min(r * 0.48, 44));
-  const subSize = Math.max(9, Math.min(r * 0.15, 14));
+  var cx = viewBox.cx;
+  var cy = viewBox.cy;
+  var r = viewBox.innerRadius || 80;
+  var pctSize = Math.max(16, Math.min(r * 0.48, 44));
+  var subSize = Math.max(9, Math.min(r * 0.15, 14));
   return (
     <g>
       <text x={cx} y={cy - subSize * 0.4} textAnchor="middle" dominantBaseline="central"
-        fontSize={pctSize} fontWeight="700" fill={getAchievementColor(achievementRate)}
-        style={{ letterSpacing: '-0.02em' }}>
+        fontSize={pctSize} fontWeight="700" fill={getAchievementColor(achievementRate)}>
         {achievementRate}%
       </text>
       <text x={cx} y={cy + pctSize * 0.55} textAnchor="middle" dominantBaseline="central"
@@ -47,61 +47,46 @@ export default function SalesDonut({ data }) {
   }));
 
   return (
-    <div className="h-full flex flex-col gap-3 min-h-0">
+    <div className="h-full flex flex-col gap-2 min-h-0">
       {/* 수치 표시 */}
-      <div className="flex items-end gap-6 sm:gap-8 shrink-0">
-        <div>
-          <span className="text-sm sm:text-base font-medium text-slate-400 tracking-wider">목표</span>
-          <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight tracking-tight">
-            {formatCurrency(totalTarget)}
-          </div>
+      <div className="flex items-center gap-3 sm:gap-5 flex-wrap shrink-0">
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm sm:text-base text-gray-500">목표</span>
+          <span className="text-3xl sm:text-4xl lg:text-5xl font-bold">{formatCurrency(totalTarget)}</span>
         </div>
-        <div>
-          <span className="text-sm sm:text-base font-medium text-slate-400 tracking-wider">달성</span>
-          <div className="text-4xl sm:text-5xl lg:text-6xl font-bold text-slate-800 leading-tight tracking-tight">
-            {formatCurrency(totalActual)}
-          </div>
+        <div className="flex items-baseline gap-2">
+          <span className="text-sm sm:text-base text-gray-500">달성</span>
+          <span className="text-3xl sm:text-4xl lg:text-5xl font-bold">{formatCurrency(totalActual)}</span>
         </div>
       </div>
 
-      {/* 도넛 차트 + 바 차트 */}
+      {/* 도넛 차트 */}
       <div className="flex-1 min-h-0 flex items-center">
-        <div className="w-5/12 h-full">
+        <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
-              <Pie
-                data={pieData}
-                dataKey="value"
-                cx="50%"
-                cy="50%"
-                innerRadius="44%"
-                outerRadius="90%"
-                startAngle={90}
-                endAngle={-270}
-                stroke="none"
-              >
+              <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius="44%" outerRadius="90%" startAngle={90} endAngle={-270}>
                 <Cell fill={getAchievementColor(achievementRate)} />
-                <Cell fill="#e5e7eb" />
+                <Cell fill="#e2e8f0" />
                 <LabelList content={<DonutCenterLabel achievementRate={achievementRate} />} position="center" />
               </Pie>
             </PieChart>
           </ResponsiveContainer>
         </div>
 
-        {/* 부서별 가로 바 */}
-        <div className="w-7/12 h-full">
+        {/* 부서별 가로 바 + 금액 표시 */}
+        <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} layout="vertical" margin={{ left: 5, right: 70, top: 5, bottom: 5 }}>
+            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 70, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
-              <YAxis type="category" dataKey="name" width={90}
-                tick={{ fontSize: 15, fontWeight: 600, fill: '#475569' }} />
+              <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 15, fontWeight: 600 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
-              <Bar dataKey="value" radius={[0, 6, 6, 0]} barSize={20}>
+              <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="right"
-                  style={{ fontSize: 15, fill: '#334155', fontWeight: 700 }}
+                  style={{ fontSize: 16, fill: '#1e293b', fontWeight: 700 }}
                 />
               </Bar>
             </BarChart>
