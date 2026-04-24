@@ -13,7 +13,7 @@ import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
 
 function SectionHeader({ icon: Icon, title, badge }) {
   return (
-    <div className="px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2.5 border-b border-gray-200/80 shrink-0">
+    <div className="px-4 sm:px-5 py-2.5 sm:py-3 flex items-center gap-2.5 border-b border-gray-200 shrink-0">
       <Icon size={20} className="text-slate-500 shrink-0" strokeWidth={2.2} />
       <span className="text-base sm:text-lg font-semibold text-slate-600 tracking-tight">{title}</span>
       {badge}

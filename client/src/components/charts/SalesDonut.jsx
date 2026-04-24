@@ -9,6 +9,7 @@ function getAchievementColor(rate) {
 }
 
 function DonutCenterLabel({ viewBox, achievementRate }) {
+  if (!viewBox) return null;
   const { cx, cy, innerRadius } = viewBox;
   const r = innerRadius || 80;
   const pctSize = Math.max(16, Math.min(r * 0.48, 44));
@@ -65,7 +66,7 @@ export default function SalesDonut({ data }) {
 
       {/* 도넛 차트 + 바 차트 */}
       <div className="flex-1 min-h-0 flex items-center">
-        <div className="w-[45%] h-full">
+        <div className="w-5/12 h-full">
           <ResponsiveContainer width="100%" height="100%">
             <PieChart>
               <Pie
@@ -88,7 +89,7 @@ export default function SalesDonut({ data }) {
         </div>
 
         {/* 부서별 가로 바 */}
-        <div className="w-[55%] h-full">
+        <div className="w-7/12 h-full">
           <ResponsiveContainer width="100%" height="100%">
             <BarChart data={stackData} layout="vertical" margin={{ left: 5, right: 70, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
