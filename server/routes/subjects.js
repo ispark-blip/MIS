@@ -105,6 +105,49 @@ router.get('/summary', (req, res) => {
   res.json({ success: true, data: summary, meta: { source: 'sqlite' } });
 });
 
+// GET /api/subjects/debug - 데이터 소스별 원본 확인 (공개)
+router.get('/debug', (req, res) => {
+  const { lab: filterLab, month, year } = req.query;
+  const sheetsService = req.app.get('sheetsService');
+  if (!sheetsService) return res.json({ success: false, error: 'sheetsService 없음' });
+
+  const internalRows = sheetsService.transformSubjectsData();
+  const externalRows = sheetsService.cache.externalSubjects || [];
+
+  const y = parseInt(year) || new Date().getFullYear();
+  const m = parseInt(month) || (new Date().getMonth() + 1);
+  const prefix = `${y}-${String(m).padStart(2, '0')}`;
+
+  const filterByMonth = (rows) => rows.filter(r => r.date && r.date.startsWith(prefix));
+  const filterByLab = (rows) => filterLab ? rows.filter(r => r.lab === filterLab) : rows;
+
+  const intFiltered = filterByLab(filterByMonth(internalRows));
+  const extFiltered = filterByLab(filterByMonth(externalRows));
+
+  const intByDate = {};
+  intFiltered.forEach(r => { intByDate[r.date] = (intByDate[r.date] || 0) + r.subject_count; });
+  const extByDate = {};
+  extFiltered.forEach(r => { extByDate[r.date] = (extByDate[r.date] || 0) + r.subject_count; });
+
+  const allDates = [...new Set([...Object.keys(intByDate), ...Object.keys(extByDate)])].sort();
+  const merged = allDates.map(d => ({
+    date: d,
+    internal: intByDate[d] || 0,
+    external: extByDate[d] || 0,
+    total: (intByDate[d] || 0) + (extByDate[d] || 0),
+  }));
+
+  res.json({
+    success: true,
+    lab: filterLab || '전체',
+    period: prefix,
+    internal: { count: intFiltered.length, total: intFiltered.reduce((s, r) => s + r.subject_count, 0) },
+    external: { count: extFiltered.length, total: extFiltered.reduce((s, r) => s + r.subject_count, 0) },
+    combined: { total: merged.reduce((s, r) => s + r.total, 0) },
+    daily: merged,
+  });
+});
+
 // POST /api/subjects - 시험대상자 입력 권한 필요
 router.post('/', requireAuth, requirePermission('can_input_subjects'), async (req, res) => {
   const { date, lab, department, subject_count, study_name } = req.body;
