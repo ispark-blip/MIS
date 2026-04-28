@@ -861,6 +861,7 @@ class GoogleSheetsService {
 
     const birthdays = [];
     const anniversaries = [];
+    const newHires = [];
 
     for (const row of employees) {
       if (!row || !row[0]) continue;
@@ -890,11 +891,15 @@ class GoogleSheetsService {
             anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
           }
         }
+        if (hy === curYear && hm === curMonth) {
+          newHires.push({ name, rank, dept, location, hireDate, day: hd });
+        }
       }
     }
 
     birthdays.sort((a, b) => a.day - b.day);
     anniversaries.sort((a, b) => a.day - b.day);
+    newHires.sort((a, b) => a.day - b.day);
 
     const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
     const nextMonthYear = curMonth === 12 ? curYear + 1 : curYear;
@@ -935,7 +940,7 @@ class GoogleSheetsService {
     weddings.sort((a, b) => (a.dday || 0) - (b.dday || 0));
     condolences.sort((a, b) => (b.dday || 0) - (a.dday || 0));
 
-    return { birthdays, anniversaries, weddings, condolences, month: curMonth, year: curYear };
+    return { birthdays, newHires, anniversaries, weddings, condolences, month: curMonth, year: curYear };
   }
 
   // ============ 폴링 ============

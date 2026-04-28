@@ -189,13 +189,14 @@ export default function CelebrationPage() {
     );
   }
 
-  var cards = [];
+  // 1행: 생일, 신규입사, 입사기념일
+  var row1 = [];
 
   if (data.birthdays && data.birthdays.length > 0) {
     var bCols = getCols(data.birthdays.length);
     var bScale = getSize(data.birthdays.length, bCols);
     var bS = SIZES[bScale];
-    cards.push({
+    row1.push({
       key: 'birthday',
       icon: '🎂',
       title: '이달의 생일',
@@ -215,11 +216,32 @@ export default function CelebrationPage() {
     });
   }
 
+  if (data.newHires && data.newHires.length > 0) {
+    var nCols = getCols(data.newHires.length);
+    var nScale = getSize(data.newHires.length, nCols);
+    var nS = SIZES[nScale];
+    row1.push({
+      key: 'newHire',
+      icon: '🎉',
+      title: '신규입사',
+      subtitle: data.month + '월 신규입사 ' + data.newHires.length + '명',
+      iconBg: '#dcfce7',
+      borderColor: '#f0fdf4',
+      scale: nScale,
+      cols: nCols,
+      items: data.newHires.map(function (p, i) {
+        return (
+          <PersonRow key={i} person={{ ...p, _dateDisplay: p.hireDate, _badge: null }} index={i} type="anniversary" s={nS} />
+        );
+      }),
+    });
+  }
+
   if (data.anniversaries && data.anniversaries.length > 0) {
     var aCols = getCols(data.anniversaries.length);
     var aScale = getSize(data.anniversaries.length, aCols);
     var aS = SIZES[aScale];
-    cards.push({
+    row1.push({
       key: 'anniversary',
       icon: '🏢',
       title: '입사기념일',
@@ -237,11 +259,14 @@ export default function CelebrationPage() {
     });
   }
 
+  // 2행: 결혼, 부고
+  var row2 = [];
+
   if (data.weddings && data.weddings.length > 0) {
     var wCols = getCols(data.weddings.length);
     var wScale = getSize(data.weddings.length, wCols);
     var wS = SIZES[wScale];
-    cards.push({
+    row2.push({
       key: 'wedding',
       icon: '💐',
       title: '결혼',
@@ -263,7 +288,7 @@ export default function CelebrationPage() {
     var cCols = getCols(data.condolences.length);
     var cScale = getSize(data.condolences.length, cCols);
     var cS = SIZES[cScale];
-    cards.push({
+    row2.push({
       key: 'condolence',
       icon: '🕯️',
       title: '부고',
@@ -280,23 +305,7 @@ export default function CelebrationPage() {
     });
   }
 
-  var count = cards.length;
-  var gridStyle = { flex: 1, display: 'grid', gap: 24, minHeight: 0 };
-  if (count === 1) {
-    gridStyle.gridTemplateColumns = '1fr';
-    gridStyle.gridTemplateRows = '1fr';
-  } else if (count === 2) {
-    gridStyle.gridTemplateColumns = '1fr 1fr';
-    gridStyle.gridTemplateRows = '1fr';
-  } else if (count === 3) {
-    gridStyle.gridTemplateColumns = '1fr 1fr';
-    gridStyle.gridTemplateRows = '1fr 1fr';
-  } else {
-    gridStyle.gridTemplateColumns = '1fr 1fr';
-    gridStyle.gridTemplateRows = '1fr 1fr';
-  }
-
-  if (count === 0) {
+  if (row1.length === 0 && row2.length === 0) {
     return (
       <div style={{
         width: '100%', height: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -306,6 +315,20 @@ export default function CelebrationPage() {
         이번 달 경조사 일정이 없습니다
       </div>
     );
+  }
+
+  var hasRow1 = row1.length > 0;
+  var hasRow2 = row2.length > 0;
+  var rowTemplate = hasRow1 && hasRow2 ? '1fr 1fr' : '1fr';
+
+  function renderRow(cards) {
+    return cards.map(function (c) {
+      return (
+        <div key={c.key} style={{ minHeight: 0 }}>
+          <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} cols={c.cols} scale={c.scale} />
+        </div>
+      );
+    });
   }
 
   return (
@@ -325,16 +348,17 @@ export default function CelebrationPage() {
         </div>
       </div>
 
-      <div style={gridStyle}>
-        {cards.map(function (c, idx) {
-          var wrapStyle = { minHeight: 0 };
-          if (count === 3 && idx === 2) wrapStyle.gridColumn = '1 / -1';
-          return (
-            <div key={c.key} style={wrapStyle}>
-              <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} cols={c.cols} scale={c.scale} />
-            </div>
-          );
-        })}
+      <div style={{ flex: 1, display: 'grid', gridTemplateRows: rowTemplate, gap: 24, minHeight: 0 }}>
+        {hasRow1 && (
+          <div style={{ display: 'grid', gridTemplateColumns: row1.map(function () { return '1fr'; }).join(' '), gap: 24, minHeight: 0 }}>
+            {renderRow(row1)}
+          </div>
+        )}
+        {hasRow2 && (
+          <div style={{ display: 'grid', gridTemplateColumns: row2.map(function () { return '1fr'; }).join(' '), gap: 24, minHeight: 0 }}>
+            {renderRow(row2)}
+          </div>
+        )}
       </div>
     </div>
   );
