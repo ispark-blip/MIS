@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import api from '../utils/api';
 
-const AVATAR_COLORS = [
+var AVATAR_COLORS = [
   'linear-gradient(135deg, #f59e0b, #d97706)',
   'linear-gradient(135deg, #10b981, #059669)',
   'linear-gradient(135deg, #8b5cf6, #7c3aed)',
@@ -11,63 +11,86 @@ const AVATAR_COLORS = [
   'linear-gradient(135deg, #ec4899, #db2777)',
 ];
 
-const CATEGORY_COLORS = {
+var CATEGORY_COLORS = {
   birthday: 'linear-gradient(135deg, #f59e0b, #d97706)',
   anniversary: 'linear-gradient(135deg, #3b82f6, #2563eb)',
   wedding: 'linear-gradient(135deg, #ec4899, #db2777)',
   condolence: 'linear-gradient(135deg, #94a3b8, #64748b)',
 };
 
-function Avatar({ name, index, type }) {
+function getScale(count) {
+  if (count <= 3) return 'lg';
+  if (count <= 5) return 'md';
+  if (count <= 8) return 'sm';
+  return 'xs';
+}
+
+var SIZES = {
+  lg: { avatar: 48, avatarFont: 22, name: 22, rank: 15, dept: 15, rowPad: 14, rowGap: 16, date: 20, badgeFont: 17, badgePad: '5px 16px', rowRadius: 12 },
+  md: { avatar: 40, avatarFont: 18, name: 19, rank: 14, dept: 14, rowPad: 10, rowGap: 12, date: 17, badgeFont: 15, badgePad: '4px 12px', rowRadius: 10 },
+  sm: { avatar: 34, avatarFont: 15, name: 17, rank: 13, dept: 13, rowPad: 7, rowGap: 10, date: 15, badgeFont: 13, badgePad: '3px 10px', rowRadius: 8 },
+  xs: { avatar: 28, avatarFont: 13, name: 15, rank: 12, dept: 12, rowPad: 5, rowGap: 8, date: 14, badgeFont: 12, badgePad: '2px 8px', rowRadius: 6 },
+};
+
+function Avatar({ name, index, type, s }) {
   var initial = name ? name.charAt(0) : '?';
   var bg = type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div style={{
-      width: 48, height: 48, borderRadius: '50%', background: bg,
+      width: s.avatar, height: s.avatar, borderRadius: '50%', background: bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 22, fontWeight: 700, color: '#fff', flexShrink: 0,
+      fontSize: s.avatarFont, fontWeight: 700, color: '#fff', flexShrink: 0,
     }}>
       {initial}
     </div>
   );
 }
 
-function Badge({ text, color, bg }) {
+function Badge({ text, color, bg, s }) {
   return (
     <span style={{
-      display: 'inline-block', padding: '5px 16px', borderRadius: 20,
-      fontSize: 17, fontWeight: 700, marginTop: 6, background: bg, color: color,
+      display: 'inline-block', padding: s.badgePad, borderRadius: 20,
+      fontSize: s.badgeFont, fontWeight: 700, marginTop: 4, background: bg, color: color,
     }}>
       {text}
     </span>
   );
 }
 
-function PersonRow({ person, index, type, children }) {
+function PersonRow({ person, index, type, s, children }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 16,
-      padding: '14px 18px', borderRadius: 12, background: '#f8fafc',
+      display: 'flex', alignItems: 'center', gap: s.rowGap,
+      padding: s.rowPad + 'px ' + (s.rowPad + 4) + 'px', borderRadius: s.rowRadius, background: '#f8fafc',
     }}>
-      <Avatar name={person.name} index={index} type={type} />
+      <Avatar name={person.name} index={index} type={type} s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: '#1e293b' }}>
+        <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b' }}>
           {person.name}
-          <span style={{ fontSize: 15, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{person.rank}</span>
+          <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{person.rank}</span>
         </div>
-        <div style={{ fontSize: 15, color: '#64748b', fontWeight: 500, marginTop: 2 }}>{person.dept}</div>
+        <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1 }}>{person.dept}</div>
         {children}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: 20, color: '#1e293b', fontWeight: 700 }}>{person._dateDisplay}</div>}
+        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700 }}>{person._dateDisplay}</div>}
         {person._badge}
       </div>
     </div>
   );
 }
 
-function Card({ icon, title, subtitle, borderColor, iconBg, items }) {
+function Card({ icon, title, subtitle, borderColor, iconBg, items, scale }) {
   if (!items || items.length === 0) return null;
+  var s = SIZES[scale] || SIZES.lg;
+  var headerPad = scale === 'xs' ? '12px 20px 8px' : scale === 'sm' ? '14px 24px 10px' : '18px 28px 14px';
+  var titleFont = scale === 'xs' ? 20 : scale === 'sm' ? 22 : 24;
+  var subtitleFont = scale === 'xs' ? 12 : 14;
+  var iconSize = scale === 'xs' ? 38 : scale === 'sm' ? 42 : 48;
+  var iconFont = scale === 'xs' ? 20 : scale === 'sm' ? 23 : 26;
+  var bodyPad = scale === 'xs' ? '0 16px 8px' : scale === 'sm' ? '0 20px 10px' : '0 28px 16px';
+  var gap = items.length > 8 ? 2 : items.length > 5 ? 3 : items.length > 3 ? 5 : 8;
+
   return (
     <div style={{
       background: '#fff', borderRadius: 20,
@@ -76,23 +99,23 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items }) {
     }}>
       <div style={{
         display: 'flex', alignItems: 'center', gap: 14,
-        padding: '22px 28px 18px', flexShrink: 0,
+        padding: headerPad, flexShrink: 0,
         borderBottom: '2px solid ' + (borderColor || '#f1f5f9'),
       }}>
         <div style={{
-          width: 52, height: 52, borderRadius: 14,
+          width: iconSize, height: iconSize, borderRadius: 14,
           display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 28, flexShrink: 0, background: iconBg || '#f1f5f9',
+          fontSize: iconFont, flexShrink: 0, background: iconBg || '#f1f5f9',
         }}>
           {icon}
         </div>
         <div>
-          <div style={{ fontSize: 26, fontWeight: 700, color: '#1e293b' }}>{title}</div>
-          <div style={{ fontSize: 15, color: '#94a3b8', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
+          <div style={{ fontSize: titleFont, fontWeight: 700, color: '#1e293b' }}>{title}</div>
+          <div style={{ fontSize: subtitleFont, color: '#94a3b8', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: '0 28px 24px', overflow: 'hidden' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: gap }}>
           {items}
         </div>
       </div>
@@ -131,8 +154,9 @@ export default function CelebrationPage() {
 
   var cards = [];
 
-  // 생일
   if (data.birthdays && data.birthdays.length > 0) {
+    var bScale = getScale(data.birthdays.length);
+    var bS = SIZES[bScale];
     cards.push({
       key: 'birthday',
       icon: '🎂',
@@ -140,19 +164,21 @@ export default function CelebrationPage() {
       subtitle: data.month + '월 생일자 ' + data.birthdays.length + '명',
       iconBg: '#fef3c7',
       borderColor: '#fef9ee',
+      scale: bScale,
       items: data.birthdays.map(function (p, i) {
         var badge = null;
-        if (p.dday === 0) badge = <Badge text="🎉 오늘" bg="#fee2e2" color="#dc2626" />;
-        else if (p.dday > 0 && p.dday <= 7) badge = <Badge text={'D-' + p.dday} bg="#fef3c7" color="#b45309" />;
+        if (p.dday === 0) badge = <Badge text="🎉 오늘" bg="#fee2e2" color="#dc2626" s={bS} />;
+        else if (p.dday > 0 && p.dday <= 7) badge = <Badge text={'D-' + p.dday} bg="#fef3c7" color="#b45309" s={bS} />;
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.month + '월 ' + p.day + '일', _badge: badge }} index={i} />
+          <PersonRow key={i} person={{ ...p, _dateDisplay: p.month + '월 ' + p.day + '일', _badge: badge }} index={i} s={bS} />
         );
       }),
     });
   }
 
-  // 입사기념일
   if (data.anniversaries && data.anniversaries.length > 0) {
+    var aScale = getScale(data.anniversaries.length);
+    var aS = SIZES[aScale];
     cards.push({
       key: 'anniversary',
       icon: '🏢',
@@ -160,18 +186,20 @@ export default function CelebrationPage() {
       subtitle: data.month + '월 입사기념 ' + data.anniversaries.length + '명',
       iconBg: '#dbeafe',
       borderColor: '#eff6ff',
+      scale: aScale,
       items: data.anniversaries.map(function (p, i) {
-        var badge = <Badge text={p.years + '주년'} bg="#dbeafe" color="#1d4ed8" />;
-        if (p.years % 5 === 0) badge = <Badge text={p.years + '주년 🎊'} bg="#dbeafe" color="#1d4ed8" />;
+        var badge = <Badge text={p.years + '주년'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
+        if (p.years % 5 === 0) badge = <Badge text={p.years + '주년 🎊'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.hireDate, _badge: badge }} index={i} type="anniversary" />
+          <PersonRow key={i} person={{ ...p, _dateDisplay: p.hireDate, _badge: badge }} index={i} type="anniversary" s={aS} />
         );
       }),
     });
   }
 
-  // 결혼
   if (data.weddings && data.weddings.length > 0) {
+    var wScale = getScale(data.weddings.length);
+    var wS = SIZES[wScale];
     cards.push({
       key: 'wedding',
       icon: '💐',
@@ -179,17 +207,19 @@ export default function CelebrationPage() {
       subtitle: '축하드립니다',
       iconBg: '#fce7f3',
       borderColor: '#fdf2f8',
+      scale: wScale,
       items: data.weddings.map(function (p, i) {
-        var badge = <Badge text={ddayText(p.dday)} bg="#fce7f3" color="#be185d" />;
+        var badge = <Badge text={ddayText(p.dday)} bg="#fce7f3" color="#be185d" s={wS} />;
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: badge }} index={i} type="wedding" />
+          <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: badge }} index={i} type="wedding" s={wS} />
         );
       }),
     });
   }
 
-  // 부고
   if (data.condolences && data.condolences.length > 0) {
+    var cScale = getScale(data.condolences.length);
+    var cS = SIZES[cScale];
     cards.push({
       key: 'condolence',
       icon: '🕯️',
@@ -197,10 +227,11 @@ export default function CelebrationPage() {
       subtitle: '삼가 고인의 명복을 빕니다',
       iconBg: '#f1f5f9',
       borderColor: '#f8fafc',
+      scale: cScale,
       items: data.condolences.map(function (p, i) {
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: null }} index={i} type="condolence">
-            {p.detail && <div style={{ fontSize: 15, color: '#475569', marginTop: 4 }}>{p.detail}</div>}
+          <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: null }} index={i} type="condolence" s={cS}>
+            {p.detail && <div style={{ fontSize: cS.dept, color: '#475569', marginTop: 3 }}>{p.detail}</div>}
           </PersonRow>
         );
       }),
@@ -242,7 +273,6 @@ export default function CelebrationPage() {
       background: 'linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%)',
       overflow: 'hidden',
     }}>
-      {/* 헤더 */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         marginBottom: 28, flexShrink: 0,
@@ -253,14 +283,13 @@ export default function CelebrationPage() {
         </div>
       </div>
 
-      {/* 동적 그리드 */}
       <div style={gridStyle}>
         {cards.map(function (c, idx) {
           var wrapStyle = { minHeight: 0 };
           if (count === 3 && idx === 2) wrapStyle.gridColumn = '1 / -1';
           return (
             <div key={c.key} style={wrapStyle}>
-              <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} />
+              <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} scale={c.scale} />
             </div>
           );
         })}
