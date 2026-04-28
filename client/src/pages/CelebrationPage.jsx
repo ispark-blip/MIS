@@ -35,8 +35,8 @@ function Avatar({ name, index, type }) {
 function Badge({ text, color, bg }) {
   return (
     <span style={{
-      display: 'inline-block', padding: '4px 14px', borderRadius: 20,
-      fontSize: 15, fontWeight: 600, marginTop: 4, background: bg, color: color,
+      display: 'inline-block', padding: '5px 16px', borderRadius: 20,
+      fontSize: 17, fontWeight: 700, marginTop: 6, background: bg, color: color,
     }}>
       {text}
     </span>
@@ -59,7 +59,7 @@ function PersonRow({ person, index, type, children }) {
         {children}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: 16, color: '#64748b', fontWeight: 500 }}>{person._dateDisplay}</div>}
+        {person._dateDisplay && <div style={{ fontSize: 20, color: '#1e293b', fontWeight: 700 }}>{person._dateDisplay}</div>}
         {person._badge}
       </div>
     </div>
