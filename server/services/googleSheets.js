@@ -885,8 +885,10 @@ class GoogleSheetsService {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
         if (hm === curMonth && hy < curYear && hd >= curDay) {
           const years = curYear - hy;
-          const dday = hd - curDay;
-          anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
+          if (years === 1 || years === 3 || years === 5 || years === 10 || years === 20) {
+            const dday = hd - curDay;
+            anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
+          }
         }
       }
     }
