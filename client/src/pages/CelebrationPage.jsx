@@ -87,6 +87,28 @@ function PersonRow({ person, index, type, s, children }) {
   );
 }
 
+function CondolenceRow({ person, index, s }) {
+  return (
+    <div style={{
+      display: 'flex', alignItems: 'center', gap: s.rowGap,
+      padding: s.rowPad + 'px ' + (s.rowPad + 4) + 'px', borderRadius: s.rowRadius, background: '#f8fafc',
+    }}>
+      <Avatar name={person.name} index={index} type="condolence" s={s} />
+      <div style={{ flex: 1, minWidth: 0 }}>
+        {person.detail && <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
+        <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          {person.name}
+          <span style={{ marginLeft: 6 }}>{person.rank}</span>
+          <span style={{ marginLeft: 6 }}>{person.dept}</span>
+        </div>
+      </div>
+      <div style={{ textAlign: 'right', flexShrink: 0 }}>
+        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
+      </div>
+    </div>
+  );
+}
+
 function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }) {
   if (!items || items.length === 0) return null;
   var headerPad = scale === 'xs' ? '10px 18px 8px' : scale === 'sm' ? '12px 22px 10px' : '16px 28px 12px';
@@ -251,9 +273,7 @@ export default function CelebrationPage() {
       cols: cCols,
       items: data.condolences.map(function (p, i) {
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: null }} index={i} type="condolence" s={cS}>
-            {p.detail && <div style={{ fontSize: cS.dept, color: '#475569', marginTop: 2 }}>{p.detail}</div>}
-          </PersonRow>
+          <CondolenceRow key={i} person={{ ...p, _dateDisplay: p.date }} index={i} s={cS} />
         );
       }),
     });
