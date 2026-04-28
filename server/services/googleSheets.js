@@ -875,7 +875,7 @@ class GoogleSheetsService {
       if (contract === 'Y') continue;
 
       const bday = this._parseEmployeeBirthday(row[5]);
-      if (bday && bday.month === curMonth) {
+      if (bday && bday.month === curMonth && bday.day >= curDay) {
         const dday = bday.day - curDay;
         birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
       }
@@ -883,7 +883,7 @@ class GoogleSheetsService {
       const hireDate = this._parseEmployeeDate(row[6]);
       if (hireDate) {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
-        if (hm === curMonth && hy < curYear) {
+        if (hm === curMonth && hy < curYear && hd >= curDay) {
           const years = curYear - hy;
           const dday = hd - curDay;
           anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
