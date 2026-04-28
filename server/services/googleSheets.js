@@ -871,6 +871,8 @@ class GoogleSheetsService {
       const location = String(row[12] || '').trim();
 
       if (status === '퇴직') continue;
+      const contract = String(row[16] || '').trim().toUpperCase();
+      if (contract === 'Y') continue;
 
       const bday = this._parseEmployeeBirthday(row[5]);
       if (bday && bday.month === curMonth) {

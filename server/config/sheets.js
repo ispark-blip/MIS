@@ -29,7 +29,7 @@ module.exports = {
 
   // 직원 정보 (경조사 - 생일/입사일)
   SPREADSHEET_ID_EMPLOYEES: process.env.SHEET_ID_EMPLOYEES || '1fyBpU7bOIEYgrWmhVkkJu6M9lZ11n6wBk6wBd7pyA-U',
-  SHEET_RANGE_EMPLOYEES: process.env.SHEET_RANGE_EMPLOYEES || '인원현황!A2:M',
+  SHEET_RANGE_EMPLOYEES: process.env.SHEET_RANGE_EMPLOYEES || '인원현황!A2:Q',
   // 경조사 (결혼/부고) - 직원 시트 내 별도 탭
   SHEET_TAB_CELEBRATIONS: process.env.SHEET_TAB_CELEBRATIONS || '경조사',
 
