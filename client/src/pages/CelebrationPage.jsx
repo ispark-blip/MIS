@@ -83,6 +83,7 @@ function PersonRow({ person, index, type, s, children }) {
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
         {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
         {person._badge}
+        {person._subDate && <div style={{ fontSize: s.dept, color: '#94a3b8', fontWeight: 500, marginTop: 2, whiteSpace: 'nowrap' }}>{person._subDate}</div>}
       </div>
     </div>
   );
@@ -228,10 +229,9 @@ export default function CelebrationPage() {
       scale: aScale,
       cols: aCols,
       items: data.anniversaries.map(function (p, i) {
-        var badge = <Badge text={p.years + '주년'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
-        if (p.years % 5 === 0) badge = <Badge text={p.years + '주년 🎊'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
+        var yearsLabel = p.years % 5 === 0 ? p.years + '주년 🎊' : p.years + '주년';
         return (
-          <PersonRow key={i} person={{ ...p, _dateDisplay: p.hireDate, _badge: badge }} index={i} type="anniversary" s={aS} />
+          <PersonRow key={i} person={{ ...p, _dateDisplay: yearsLabel, _badge: null, _subDate: p.hireDate }} index={i} type="anniversary" s={aS} />
         );
       }),
     });
