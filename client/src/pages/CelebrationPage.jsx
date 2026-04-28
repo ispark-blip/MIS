@@ -18,18 +18,24 @@ var CATEGORY_COLORS = {
   condolence: 'linear-gradient(135deg, #94a3b8, #64748b)',
 };
 
-function getScale(count) {
-  if (count <= 3) return 'lg';
-  if (count <= 5) return 'md';
-  if (count <= 8) return 'sm';
+function getCols(count) {
+  if (count <= 3) return 1;
+  return 2;
+}
+
+function getSize(count, cols) {
+  var rows = Math.ceil(count / cols);
+  if (rows <= 3) return 'lg';
+  if (rows <= 5) return 'md';
+  if (rows <= 8) return 'sm';
   return 'xs';
 }
 
 var SIZES = {
-  lg: { avatar: 48, avatarFont: 22, name: 22, rank: 15, dept: 15, rowPad: 14, rowGap: 16, date: 20, badgeFont: 17, badgePad: '5px 16px', rowRadius: 12 },
-  md: { avatar: 40, avatarFont: 18, name: 19, rank: 14, dept: 14, rowPad: 10, rowGap: 12, date: 17, badgeFont: 15, badgePad: '4px 12px', rowRadius: 10 },
-  sm: { avatar: 34, avatarFont: 15, name: 17, rank: 13, dept: 13, rowPad: 7, rowGap: 10, date: 15, badgeFont: 13, badgePad: '3px 10px', rowRadius: 8 },
-  xs: { avatar: 28, avatarFont: 13, name: 15, rank: 12, dept: 12, rowPad: 5, rowGap: 8, date: 14, badgeFont: 12, badgePad: '2px 8px', rowRadius: 6 },
+  lg: { avatar: 44, avatarFont: 20, name: 20, rank: 14, dept: 14, rowPad: 12, rowGap: 14, date: 18, badgeFont: 15, badgePad: '4px 14px', rowRadius: 10 },
+  md: { avatar: 38, avatarFont: 17, name: 18, rank: 13, dept: 13, rowPad: 9, rowGap: 11, date: 16, badgeFont: 14, badgePad: '3px 11px', rowRadius: 9 },
+  sm: { avatar: 32, avatarFont: 14, name: 16, rank: 12, dept: 12, rowPad: 6, rowGap: 9, date: 14, badgeFont: 12, badgePad: '3px 9px', rowRadius: 8 },
+  xs: { avatar: 26, avatarFont: 12, name: 14, rank: 11, dept: 11, rowPad: 4, rowGap: 7, date: 13, badgeFont: 11, badgePad: '2px 7px', rowRadius: 6 },
 };
 
 function Avatar({ name, index, type, s }) {
@@ -50,7 +56,8 @@ function Badge({ text, color, bg, s }) {
   return (
     <span style={{
       display: 'inline-block', padding: s.badgePad, borderRadius: 20,
-      fontSize: s.badgeFont, fontWeight: 700, marginTop: 4, background: bg, color: color,
+      fontSize: s.badgeFont, fontWeight: 700, background: bg, color: color,
+      whiteSpace: 'nowrap',
     }}>
       {text}
     </span>
@@ -65,31 +72,37 @@ function PersonRow({ person, index, type, s, children }) {
     }}>
       <Avatar name={person.name} index={index} type={type} s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b' }}>
+        <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {person.name}
-          <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 8 }}>{person.rank}</span>
+          <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>{person.rank}</span>
         </div>
-        <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1 }}>{person.dept}</div>
+        <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.dept}</div>
         {children}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700 }}>{person._dateDisplay}</div>}
+        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
         {person._badge}
       </div>
     </div>
   );
 }
 
-function Card({ icon, title, subtitle, borderColor, iconBg, items, scale }) {
+function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }) {
   if (!items || items.length === 0) return null;
-  var s = SIZES[scale] || SIZES.lg;
-  var headerPad = scale === 'xs' ? '12px 20px 8px' : scale === 'sm' ? '14px 24px 10px' : '18px 28px 14px';
-  var titleFont = scale === 'xs' ? 20 : scale === 'sm' ? 22 : 24;
+  var headerPad = scale === 'xs' ? '10px 18px 8px' : scale === 'sm' ? '12px 22px 10px' : '16px 28px 12px';
+  var titleFont = scale === 'xs' ? 19 : scale === 'sm' ? 21 : 24;
   var subtitleFont = scale === 'xs' ? 12 : 14;
-  var iconSize = scale === 'xs' ? 38 : scale === 'sm' ? 42 : 48;
-  var iconFont = scale === 'xs' ? 20 : scale === 'sm' ? 23 : 26;
-  var bodyPad = scale === 'xs' ? '0 16px 8px' : scale === 'sm' ? '0 20px 10px' : '0 28px 16px';
-  var gap = items.length > 8 ? 2 : items.length > 5 ? 3 : items.length > 3 ? 5 : 8;
+  var iconSize = scale === 'xs' ? 36 : scale === 'sm' ? 40 : 48;
+  var iconFont = scale === 'xs' ? 18 : scale === 'sm' ? 22 : 26;
+  var bodyPad = scale === 'xs' ? '0 14px 6px' : scale === 'sm' ? '0 18px 8px' : '0 28px 14px';
+  var rows = Math.ceil(items.length / cols);
+  var gap = rows > 6 ? 2 : rows > 4 ? 3 : rows > 2 ? 5 : 8;
+
+  var gridBodyStyle = {
+    display: 'grid',
+    gridTemplateColumns: cols === 2 ? '1fr 1fr' : '1fr',
+    gap: gap,
+  };
 
   return (
     <div style={{
@@ -98,7 +111,7 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, scale }) {
       display: 'flex', flexDirection: 'column', overflow: 'hidden', minHeight: 0, height: '100%',
     }}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 14,
+        display: 'flex', alignItems: 'center', gap: 12,
         padding: headerPad, flexShrink: 0,
         borderBottom: '2px solid ' + (borderColor || '#f1f5f9'),
       }}>
@@ -114,8 +127,8 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, scale }) {
           <div style={{ fontSize: subtitleFont, color: '#94a3b8', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'center' }}>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: gap }}>
+      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: items.length <= 2 ? 'flex-start' : 'center', paddingTop: items.length <= 2 ? 12 : undefined }}>
+        <div style={gridBodyStyle}>
           {items}
         </div>
       </div>
@@ -155,7 +168,8 @@ export default function CelebrationPage() {
   var cards = [];
 
   if (data.birthdays && data.birthdays.length > 0) {
-    var bScale = getScale(data.birthdays.length);
+    var bCols = getCols(data.birthdays.length);
+    var bScale = getSize(data.birthdays.length, bCols);
     var bS = SIZES[bScale];
     cards.push({
       key: 'birthday',
@@ -165,6 +179,7 @@ export default function CelebrationPage() {
       iconBg: '#fef3c7',
       borderColor: '#fef9ee',
       scale: bScale,
+      cols: bCols,
       items: data.birthdays.map(function (p, i) {
         var badge = null;
         if (p.dday === 0) badge = <Badge text="🎉 오늘" bg="#fee2e2" color="#dc2626" s={bS} />;
@@ -177,7 +192,8 @@ export default function CelebrationPage() {
   }
 
   if (data.anniversaries && data.anniversaries.length > 0) {
-    var aScale = getScale(data.anniversaries.length);
+    var aCols = getCols(data.anniversaries.length);
+    var aScale = getSize(data.anniversaries.length, aCols);
     var aS = SIZES[aScale];
     cards.push({
       key: 'anniversary',
@@ -187,6 +203,7 @@ export default function CelebrationPage() {
       iconBg: '#dbeafe',
       borderColor: '#eff6ff',
       scale: aScale,
+      cols: aCols,
       items: data.anniversaries.map(function (p, i) {
         var badge = <Badge text={p.years + '주년'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
         if (p.years % 5 === 0) badge = <Badge text={p.years + '주년 🎊'} bg="#dbeafe" color="#1d4ed8" s={aS} />;
@@ -198,7 +215,8 @@ export default function CelebrationPage() {
   }
 
   if (data.weddings && data.weddings.length > 0) {
-    var wScale = getScale(data.weddings.length);
+    var wCols = getCols(data.weddings.length);
+    var wScale = getSize(data.weddings.length, wCols);
     var wS = SIZES[wScale];
     cards.push({
       key: 'wedding',
@@ -208,6 +226,7 @@ export default function CelebrationPage() {
       iconBg: '#fce7f3',
       borderColor: '#fdf2f8',
       scale: wScale,
+      cols: wCols,
       items: data.weddings.map(function (p, i) {
         var badge = <Badge text={ddayText(p.dday)} bg="#fce7f3" color="#be185d" s={wS} />;
         return (
@@ -218,7 +237,8 @@ export default function CelebrationPage() {
   }
 
   if (data.condolences && data.condolences.length > 0) {
-    var cScale = getScale(data.condolences.length);
+    var cCols = getCols(data.condolences.length);
+    var cScale = getSize(data.condolences.length, cCols);
     var cS = SIZES[cScale];
     cards.push({
       key: 'condolence',
@@ -228,10 +248,11 @@ export default function CelebrationPage() {
       iconBg: '#f1f5f9',
       borderColor: '#f8fafc',
       scale: cScale,
+      cols: cCols,
       items: data.condolences.map(function (p, i) {
         return (
           <PersonRow key={i} person={{ ...p, _dateDisplay: p.date, _badge: null }} index={i} type="condolence" s={cS}>
-            {p.detail && <div style={{ fontSize: cS.dept, color: '#475569', marginTop: 3 }}>{p.detail}</div>}
+            {p.detail && <div style={{ fontSize: cS.dept, color: '#475569', marginTop: 2 }}>{p.detail}</div>}
           </PersonRow>
         );
       }),
@@ -289,7 +310,7 @@ export default function CelebrationPage() {
           if (count === 3 && idx === 2) wrapStyle.gridColumn = '1 / -1';
           return (
             <div key={c.key} style={wrapStyle}>
-              <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} scale={c.scale} />
+              <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} cols={c.cols} scale={c.scale} />
             </div>
           );
         })}
