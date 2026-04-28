@@ -926,7 +926,7 @@ class GoogleSheetsService {
           weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
-        if (parsed && parsed >= todayStr && parsed <= condolenceEndStr) {
+        if (dday !== null && dday >= -5 && dday <= 5) {
           condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       }
