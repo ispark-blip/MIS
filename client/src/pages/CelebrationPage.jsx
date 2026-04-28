@@ -97,7 +97,7 @@ function CondolenceRow({ person, index, s }) {
       <div style={{ flex: 1, minWidth: 0 }}>
         {person.detail && <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
         <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {person.name}
+          <span style={{ fontWeight: 700, color: '#1e293b' }}>{person.name}</span>
           <span style={{ marginLeft: 6 }}>{person.rank}</span>
           <span style={{ marginLeft: 6 }}>{person.dept}</span>
         </div>
