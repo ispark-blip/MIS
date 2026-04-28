@@ -875,7 +875,7 @@ class GoogleSheetsService {
       if (contract === 'Y') continue;
 
       const bday = this._parseEmployeeBirthday(row[5]);
-      if (bday && bday.month === curMonth && bday.day >= curDay && bday.day - curDay <= 7) {
+      if (bday && bday.month === curMonth && bday.day >= curDay) {
         const dday = bday.day - curDay;
         birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
       }
@@ -883,7 +883,7 @@ class GoogleSheetsService {
       const hireDate = this._parseEmployeeDate(row[6]);
       if (hireDate) {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
-        if (hm === curMonth && hy < curYear && hd >= curDay && hd - curDay <= 7) {
+        if (hm === curMonth && hy < curYear && hd >= curDay) {
           const years = curYear - hy;
           const dday = hd - curDay;
           anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
@@ -893,6 +893,13 @@ class GoogleSheetsService {
 
     birthdays.sort((a, b) => a.day - b.day);
     anniversaries.sort((a, b) => a.day - b.day);
+
+    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
+    const nextMonthYear = curMonth === 12 ? curYear + 1 : curYear;
+    const nextMonthLastDay = new Date(nextMonthYear, nextMonth, 0).getDate();
+    const weddingEndStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}-${String(nextMonthLastDay).padStart(2, '0')}`;
+    const curMonthLastDay = new Date(curYear, curMonth, 0).getDate();
+    const condolenceEndStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curMonthLastDay).padStart(2, '0')}`;
 
     const weddings = [];
     const condolences = [];
@@ -913,11 +920,11 @@ class GoogleSheetsService {
       const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
 
       if (type === '결혼') {
-        if (dday !== null && dday >= 0 && dday <= 7) {
+        if (parsed && parsed >= todayStr && parsed <= weddingEndStr) {
           weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
-        if (dday !== null && dday >= 0 && dday <= 7) {
+        if (parsed && parsed >= todayStr && parsed <= condolenceEndStr) {
           condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       }
