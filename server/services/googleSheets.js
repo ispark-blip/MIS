@@ -910,8 +910,8 @@ class GoogleSheetsService {
       if (!row || !row[0]) continue;
       const type = String(row[0]).trim();
       const name = String(row[1] || '').trim();
-      const rank = String(row[2] || '').trim();
-      const dept = String(row[3] || '').trim();
+      const dept = String(row[2] || '').trim();
+      const rank = String(row[3] || '').trim();
       const dateStr = String(row[4] || '').trim();
       const detail = String(row[5] || '').trim();
       const display = String(row[6] || 'Y').trim().toUpperCase();

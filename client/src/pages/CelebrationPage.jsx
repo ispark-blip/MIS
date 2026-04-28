@@ -77,6 +77,7 @@ function PersonRow({ person, index, type, s, children }) {
           <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>{person.rank}</span>
         </div>
         <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.dept}</div>
+
         {children}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
