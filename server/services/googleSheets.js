@@ -875,7 +875,7 @@ class GoogleSheetsService {
       if (contract === 'Y') continue;
 
       const bday = this._parseEmployeeBirthday(row[5]);
-      if (bday && bday.month === curMonth && bday.day >= curDay) {
+      if (bday && bday.month === curMonth && bday.day >= curDay && bday.day - curDay <= 7) {
         const dday = bday.day - curDay;
         birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
       }
@@ -883,7 +883,7 @@ class GoogleSheetsService {
       const hireDate = this._parseEmployeeDate(row[6]);
       if (hireDate) {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
-        if (hm === curMonth && hy < curYear && hd >= curDay) {
+        if (hm === curMonth && hy < curYear && hd >= curDay && hd - curDay <= 7) {
           const years = curYear - hy;
           const dday = hd - curDay;
           anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
@@ -913,11 +913,11 @@ class GoogleSheetsService {
       const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
 
       if (type === '결혼') {
-        if (dday !== null && dday >= -7) {
+        if (dday !== null && dday >= 0 && dday <= 7) {
           weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
-        if (dday !== null && dday >= -14) {
+        if (dday !== null && dday >= 0 && dday <= 7) {
           condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       }
