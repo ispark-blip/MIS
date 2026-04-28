@@ -802,7 +802,7 @@ class GoogleSheetsService {
     try {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
-        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:G`,
+        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:F`,
         valueRenderOption: 'FORMATTED_VALUE',
       });
       return res.data.values || [];
@@ -901,11 +901,10 @@ class GoogleSheetsService {
       if (!row || !row[0]) continue;
       const type = String(row[0]).trim();
       const name = String(row[1] || '').trim();
-      const rank = String(row[2] || '').trim();
-      const dept = String(row[3] || '').trim();
-      const dateStr = String(row[4] || '').trim();
-      const detail = String(row[5] || '').trim();
-      const display = String(row[6] || 'Y').trim().toUpperCase();
+      const dept = String(row[2] || '').trim();
+      const dateStr = String(row[3] || '').trim();
+      const detail = String(row[4] || '').trim();
+      const display = String(row[5] || 'Y').trim().toUpperCase();
 
       if (display !== 'Y') continue;
 
@@ -914,11 +913,11 @@ class GoogleSheetsService {
 
       if (type === '결혼') {
         if (dday !== null && dday >= -7) {
-          weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+          weddings.push({ name, rank: '', dept, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
         if (dday !== null && dday >= -14) {
-          condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+          condolences.push({ name, rank: '', dept, date: parsed || dateStr, detail, dday });
         }
       }
     }
