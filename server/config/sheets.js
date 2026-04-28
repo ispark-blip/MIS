@@ -27,6 +27,12 @@ module.exports = {
   POLLING_INTERVAL_MS: parseInt(process.env.POLLING_INTERVAL) || 30000,
   CACHE_TTL_MS: 25000,
 
+  // 직원 정보 (경조사 - 생일/입사일)
+  SPREADSHEET_ID_EMPLOYEES: process.env.SHEET_ID_EMPLOYEES || '1fyBpU7bOIEYgrWmhVkkJu6M9lZ11n6wBk6wBd7pyA-U',
+  SHEET_RANGE_EMPLOYEES: process.env.SHEET_RANGE_EMPLOYEES || '직원현황!A2:M',
+  // 경조사 (결혼/부고) - 직원 시트 내 별도 탭
+  SHEET_TAB_CELEBRATIONS: process.env.SHEET_TAB_CELEBRATIONS || '경조사',
+
   // 외부 시험대상자 시트 (자동 동기화)
   EXTERNAL_MJ_SHEET_ID: process.env.EXTERNAL_MJ_SHEET_ID || '1joJpN5F4H4nNCCkd36JuHnHIHzNyyLXwk_Lt07YZXKE',
   EXTERNAL_GS_SHEET_ID: process.env.EXTERNAL_GS_SHEET_ID || '1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow',

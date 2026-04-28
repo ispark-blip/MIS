@@ -52,7 +52,7 @@ function parseSheetDate(v) {
 
 class GoogleSheetsService {
   constructor(eventEmitter) {
-    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [] };
+    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [], employees: null, celebrations: null };
     this._lastExternalSync = 0;
     this.eventEmitter = eventEmitter;
     this.sheets = null;
@@ -781,14 +781,162 @@ class GoogleSheetsService {
     }
   }
 
+  // ============ 경조사 (직원 생일/입사일 + 결혼/부고) ============
+  async fetchEmployeeData() {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_EMPLOYEES) return null;
+    try {
+      const res = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
+        range: sheetsConfig.SHEET_RANGE_EMPLOYEES,
+        valueRenderOption: 'FORMATTED_VALUE',
+      });
+      return res.data.values || [];
+    } catch (err) {
+      console.error('[Sheets] 직원 조회 실패:', err.message);
+      return null;
+    }
+  }
+
+  async fetchCelebrationsData() {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_EMPLOYEES) return null;
+    try {
+      const res = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
+        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:G`,
+        valueRenderOption: 'FORMATTED_VALUE',
+      });
+      return res.data.values || [];
+    } catch (err) {
+      if (err.message && err.message.includes('Unable to parse range')) {
+        console.log(`[Sheets] 경조사 탭 없음 ("${sheetsConfig.SHEET_TAB_CELEBRATIONS}"). 결혼/부고 데이터 없이 진행.`);
+      } else {
+        console.warn('[Sheets] 경조사 조회 실패:', err.message);
+      }
+      return null;
+    }
+  }
+
+  _parseEmployeeBirthday(raw) {
+    if (!raw) return null;
+    const s = String(raw).replace(/[^0-9]/g, '');
+    if (s.length === 6) {
+      const yy = parseInt(s.slice(0, 2));
+      const mm = parseInt(s.slice(2, 4));
+      const dd = parseInt(s.slice(4, 6));
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+      return { month: mm, day: dd, year: yy <= 30 ? 2000 + yy : 1900 + yy };
+    }
+    if (s.length === 8) {
+      const mm = parseInt(s.slice(4, 6));
+      const dd = parseInt(s.slice(6, 8));
+      if (mm < 1 || mm > 12 || dd < 1 || dd > 31) return null;
+      return { month: mm, day: dd, year: parseInt(s.slice(0, 4)) };
+    }
+    return null;
+  }
+
+  _parseEmployeeDate(raw) {
+    if (!raw) return null;
+    const s = String(raw).trim().replace(/[.\s]+/g, '-').replace(/-+$/, '');
+    const parts = s.split('-').filter(Boolean);
+    if (parts.length >= 3) {
+      const y = parseInt(parts[0]);
+      const m = parseInt(parts[1]);
+      const d = parseInt(parts[2]);
+      if (y > 1900 && m >= 1 && m <= 12 && d >= 1 && d <= 31) {
+        return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+      }
+    }
+    return null;
+  }
+
+  getCachedCelebrations() {
+    const employees = this.cache.employees || [];
+    const celebrations = this.cache.celebrations || [];
+    const now = new Date();
+    const curYear = now.getFullYear();
+    const curMonth = now.getMonth() + 1;
+    const curDay = now.getDate();
+    const todayStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curDay).padStart(2, '0')}`;
+
+    const birthdays = [];
+    const anniversaries = [];
+
+    for (const row of employees) {
+      if (!row || !row[0]) continue;
+      const name = String(row[0] || '').trim();
+      const rank = String(row[1] || '').trim();
+      const dept = String(row[3] || '').trim();
+      const status = String(row[8] || '').trim();
+      const location = String(row[12] || '').trim();
+
+      if (status === '퇴직') continue;
+
+      const bday = this._parseEmployeeBirthday(row[5]);
+      if (bday && bday.month === curMonth) {
+        const dday = bday.day - curDay;
+        birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
+      }
+
+      const hireDate = this._parseEmployeeDate(row[6]);
+      if (hireDate) {
+        const [hy, hm, hd] = hireDate.split('-').map(Number);
+        if (hm === curMonth && hy < curYear) {
+          const years = curYear - hy;
+          const dday = hd - curDay;
+          anniversaries.push({ name, rank, dept, location, hireDate, years, day: hd, dday });
+        }
+      }
+    }
+
+    birthdays.sort((a, b) => a.day - b.day);
+    anniversaries.sort((a, b) => a.day - b.day);
+
+    const weddings = [];
+    const condolences = [];
+
+    for (const row of celebrations) {
+      if (!row || !row[0]) continue;
+      const type = String(row[0]).trim();
+      const name = String(row[1] || '').trim();
+      const rank = String(row[2] || '').trim();
+      const dept = String(row[3] || '').trim();
+      const dateStr = String(row[4] || '').trim();
+      const detail = String(row[5] || '').trim();
+      const display = String(row[6] || 'Y').trim().toUpperCase();
+
+      if (display !== 'Y') continue;
+
+      const parsed = this._parseEmployeeDate(dateStr);
+      const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
+
+      if (type === '결혼') {
+        if (dday !== null && dday >= -7) {
+          weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+        }
+      } else if (type === '부고') {
+        if (dday !== null && dday >= -14) {
+          condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+        }
+      }
+    }
+
+    weddings.sort((a, b) => (a.dday || 0) - (b.dday || 0));
+    condolences.sort((a, b) => (b.dday || 0) - (a.dday || 0));
+
+    return { birthdays, anniversaries, weddings, condolences, month: curMonth, year: curYear };
+  }
+
   // ============ 폴링 ============
   async fetchAndUpdate() {
     if (!this.initialized) return;
     try {
-      const [salesData, testCountsData, subjectsData] = await Promise.all([
+      const [salesData, testCountsData, subjectsData, employeeData, celebrationsData] = await Promise.all([
         this.fetchSalesData(),
         this.fetchTestCountsData(),
         this.fetchSubjectsData(),
+        this.fetchEmployeeData(),
+        this.fetchCelebrationsData(),
       ]);
 
       let changed = false;
@@ -820,6 +968,26 @@ class GoogleSheetsService {
           this.cache.subjects = subjectsData;
           changed = true;
           if (this.eventEmitter) this.eventEmitter('subjects-update', { source: 'sheets' });
+        }
+      }
+
+      if (employeeData) {
+        const newHash = JSON.stringify(employeeData);
+        const oldHash = JSON.stringify(this.cache.employees);
+        if (newHash !== oldHash) {
+          this.cache.employees = employeeData;
+          changed = true;
+          if (this.eventEmitter) this.eventEmitter('celebrations-update', { source: 'sheets' });
+        }
+      }
+
+      if (celebrationsData !== undefined) {
+        const newHash = JSON.stringify(celebrationsData);
+        const oldHash = JSON.stringify(this.cache.celebrations);
+        if (newHash !== oldHash) {
+          this.cache.celebrations = celebrationsData;
+          changed = true;
+          if (this.eventEmitter) this.eventEmitter('celebrations-update', { source: 'sheets' });
         }
       }
 

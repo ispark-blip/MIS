@@ -51,6 +51,10 @@ export function useSSE() {
         refreshAllData();
       });
 
+      eventSource.addEventListener('celebrations-update', () => {
+        refreshAllData();
+      });
+
       eventSource.onerror = () => {
         eventSource.close();
         useDashboardStore.setState({ connectionStatus: 'disconnected' });
