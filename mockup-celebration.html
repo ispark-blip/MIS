@@ -14,7 +14,6 @@
 
   .page { display: flex; flex-direction: column; height: 100%; padding: 32px 40px 28px; }
 
-  /* 상단 헤더 */
   .header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 28px; flex-shrink: 0;
@@ -24,95 +23,70 @@
   .header .date { font-size: 20px; color: #64748b; font-weight: 500; }
   .header .logo { font-size: 16px; color: #94a3b8; font-weight: 600; }
 
-  /* 4분할 그리드 */
+  /* 동적 그리드: JS가 카드 수에 따라 columns/rows 조절 */
   .grid {
-    flex: 1; display: grid;
-    grid-template-columns: 1fr 1fr;
-    grid-template-rows: 1fr 1fr;
-    gap: 24px; min-height: 0;
+    flex: 1; display: grid; gap: 24px; min-height: 0;
   }
+  .grid[data-count="1"] { grid-template-columns: 1fr; grid-template-rows: 1fr; }
+  .grid[data-count="2"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr; }
+  .grid[data-count="3"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
+  .grid[data-count="3"] .card:last-child { grid-column: 1 / -1; }
+  .grid[data-count="4"] { grid-template-columns: 1fr 1fr; grid-template-rows: 1fr 1fr; }
 
-  /* 카드 공통 */
   .card {
     background: #fff; border-radius: 20px;
     box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
     display: flex; flex-direction: column; overflow: hidden;
   }
   .card-header {
-    display: flex; align-items: center; gap: 12px;
-    padding: 20px 28px 16px; flex-shrink: 0;
+    display: flex; align-items: center; gap: 14px;
+    padding: 22px 28px 18px; flex-shrink: 0;
   }
   .card-icon {
-    width: 48px; height: 48px; border-radius: 14px;
+    width: 52px; height: 52px; border-radius: 14px;
     display: flex; align-items: center; justify-content: center;
-    font-size: 26px; flex-shrink: 0;
+    font-size: 28px; flex-shrink: 0;
   }
-  .card-title { font-size: 24px; font-weight: 700; color: #1e293b; }
-  .card-subtitle { font-size: 14px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
+  .card-title { font-size: 26px; font-weight: 700; color: #1e293b; }
+  .card-subtitle { font-size: 15px; color: #94a3b8; font-weight: 500; margin-top: 2px; }
   .card-body { flex: 1; padding: 0 28px 24px; overflow: hidden; }
 
-  /* 생일 */
   .birthday .card-icon { background: #fef3c7; color: #f59e0b; }
   .birthday .card-header { border-bottom: 2px solid #fef9ee; }
-
-  /* 입사기념일 */
   .anniversary .card-icon { background: #dbeafe; color: #3b82f6; }
   .anniversary .card-header { border-bottom: 2px solid #eff6ff; }
-
-  /* 결혼 */
   .wedding .card-icon { background: #fce7f3; color: #ec4899; }
   .wedding .card-header { border-bottom: 2px solid #fdf2f8; }
-
-  /* 부고 */
   .condolence .card-icon { background: #f1f5f9; color: #64748b; }
   .condolence .card-header { border-bottom: 2px solid #f8fafc; }
 
-  /* 사람 목록 */
   .person-list { display: flex; flex-direction: column; gap: 10px; }
   .person-row {
     display: flex; align-items: center; gap: 16px;
-    padding: 12px 16px; border-radius: 12px; background: #f8fafc;
-    transition: background 0.2s;
+    padding: 14px 18px; border-radius: 12px; background: #f8fafc;
   }
   .person-avatar {
-    width: 44px; height: 44px; border-radius: 50%;
+    width: 48px; height: 48px; border-radius: 50%;
     display: flex; align-items: center; justify-content: center;
-    font-size: 20px; font-weight: 700; color: #fff; flex-shrink: 0;
+    font-size: 22px; font-weight: 700; color: #fff; flex-shrink: 0;
   }
   .person-info { flex: 1; min-width: 0; }
-  .person-name { font-size: 20px; font-weight: 700; color: #1e293b; }
-  .person-dept { font-size: 14px; color: #64748b; font-weight: 500; margin-top: 2px; }
-  .person-detail {
-    text-align: right; flex-shrink: 0;
-  }
-  .person-date { font-size: 15px; color: #64748b; font-weight: 500; }
+  .person-name { font-size: 22px; font-weight: 700; color: #1e293b; }
+  .person-rank { font-size: 15px; color: #94a3b8; font-weight: 500; }
+  .person-dept { font-size: 15px; color: #64748b; font-weight: 500; margin-top: 2px; }
+  .person-detail { text-align: right; flex-shrink: 0; }
+  .person-date { font-size: 16px; color: #64748b; font-weight: 500; }
   .person-badge {
-    display: inline-block; padding: 4px 12px; border-radius: 20px;
-    font-size: 14px; font-weight: 600; margin-top: 4px;
+    display: inline-block; padding: 4px 14px; border-radius: 20px;
+    font-size: 15px; font-weight: 600; margin-top: 4px;
   }
 
-  /* 생일 배지 */
   .badge-birthday { background: #fef3c7; color: #b45309; }
   .badge-today { background: #fee2e2; color: #dc2626; font-weight: 700; }
-
-  /* 입사 배지 */
   .badge-year { background: #dbeafe; color: #1d4ed8; }
-
-  /* 결혼 */
   .badge-wedding { background: #fce7f3; color: #be185d; }
+  .condolence-detail { font-size: 16px; color: #475569; }
 
-  /* 부고 */
-  .person-row.condolence-row { background: #f8fafc; }
-  .condolence-detail { font-size: 15px; color: #475569; }
-
-  /* 빈 상태 */
-  .empty-state {
-    display: flex; flex-direction: column; align-items: center; justify-content: center;
-    height: 100%; color: #94a3b8; font-size: 18px; gap: 8px;
-  }
-  .empty-icon { font-size: 40px; opacity: 0.5; }
-
-  /* 생일 아바타 색상 */
   .avatar-amber { background: linear-gradient(135deg, #f59e0b, #d97706); }
   .avatar-blue { background: linear-gradient(135deg, #3b82f6, #2563eb); }
   .avatar-pink { background: linear-gradient(135deg, #ec4899, #db2777); }
@@ -120,12 +94,22 @@
   .avatar-green { background: linear-gradient(135deg, #10b981, #059669); }
   .avatar-purple { background: linear-gradient(135deg, #8b5cf6, #7c3aed); }
   .avatar-teal { background: linear-gradient(135deg, #14b8a6, #0d9488); }
+
+  /* 시나리오 전환 컨트롤 (시안 확인용, 실제 앱에선 제거) */
+  .scenario-bar {
+    position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+    display: flex; gap: 8px; background: rgba(30,41,59,0.9); padding: 10px 20px;
+    border-radius: 12px; z-index: 100;
+  }
+  .scenario-btn {
+    padding: 8px 16px; border: none; border-radius: 8px; cursor: pointer;
+    font-size: 14px; font-weight: 600; background: #475569; color: #e2e8f0;
+  }
+  .scenario-btn.active { background: #3b82f6; color: #fff; }
 </style>
 </head>
 <body>
 <div class="page">
-
-  <!-- 헤더 -->
   <div class="header">
     <div class="header-left">
       <h1>경조사 안내</h1>
@@ -133,191 +117,135 @@
     </div>
     <span class="logo">KDRI 한국피부과학연구원</span>
   </div>
+  <div class="grid" id="grid"></div>
+</div>
 
-  <!-- 4분할 -->
-  <div class="grid">
+<!-- 하단 시나리오 전환 버튼 (시안 확인용) -->
+<div class="scenario-bar">
+  <button class="scenario-btn active" onclick="show(4)">4개 영역</button>
+  <button class="scenario-btn" onclick="show(3)">3개 (부고 없음)</button>
+  <button class="scenario-btn" onclick="show(2)">2개 (생일+입사)</button>
+  <button class="scenario-btn" onclick="show(1)">1개 (생일만)</button>
+</div>
 
-    <!-- ① 생일 -->
+<script>
+var cards = {
+  birthday: `
     <div class="card birthday">
       <div class="card-header">
         <div class="card-icon">🎂</div>
-        <div>
-          <div class="card-title">이달의 생일</div>
-          <div class="card-subtitle">4월 생일자 5명</div>
-        </div>
+        <div><div class="card-title">이달의 생일</div><div class="card-subtitle">4월 생일자 5명</div></div>
       </div>
-      <div class="card-body">
-        <div class="person-list">
-          <div class="person-row">
-            <div class="person-avatar avatar-amber">김</div>
-            <div class="person-info">
-              <div class="person-name">김하영 <span style="font-size:14px;color:#94a3b8;font-weight:500">주임</span></div>
-              <div class="person-dept">문정 임상1팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">4월 28일</div>
-              <span class="person-badge badge-today">🎉 오늘</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-green">이</div>
-            <div class="person-info">
-              <div class="person-name">이수진 <span style="font-size:14px;color:#94a3b8;font-weight:500">연구원</span></div>
-              <div class="person-dept">가산 시험검사팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">4월 30일</div>
-              <span class="person-badge badge-birthday">D-2</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-purple">박</div>
-            <div class="person-info">
-              <div class="person-name">박지민 <span style="font-size:14px;color:#94a3b8;font-weight:500">대리</span></div>
-              <div class="person-dept">문정 비임상팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">4월 15일</div>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-teal">최</div>
-            <div class="person-info">
-              <div class="person-name">최민서 <span style="font-size:14px;color:#94a3b8;font-weight:500">팀원</span></div>
-              <div class="person-dept">문정 경영지원팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">4월 8일</div>
-            </div>
-          </div>
+      <div class="card-body"><div class="person-list">
+        <div class="person-row">
+          <div class="person-avatar avatar-amber">김</div>
+          <div class="person-info"><div class="person-name">김하영 <span class="person-rank">주임</span></div><div class="person-dept">문정 임상1팀</div></div>
+          <div class="person-detail"><div class="person-date">4월 28일</div><span class="person-badge badge-today">🎉 오늘</span></div>
         </div>
-      </div>
-    </div>
-
-    <!-- ② 입사기념일 -->
+        <div class="person-row">
+          <div class="person-avatar avatar-green">이</div>
+          <div class="person-info"><div class="person-name">이수진 <span class="person-rank">연구원</span></div><div class="person-dept">가산 시험검사팀</div></div>
+          <div class="person-detail"><div class="person-date">4월 30일</div><span class="person-badge badge-birthday">D-2</span></div>
+        </div>
+        <div class="person-row">
+          <div class="person-avatar avatar-purple">박</div>
+          <div class="person-info"><div class="person-name">박지민 <span class="person-rank">대리</span></div><div class="person-dept">문정 비임상팀</div></div>
+          <div class="person-detail"><div class="person-date">4월 15일</div></div>
+        </div>
+        <div class="person-row">
+          <div class="person-avatar avatar-teal">최</div>
+          <div class="person-info"><div class="person-name">최민서 <span class="person-rank">팀원</span></div><div class="person-dept">문정 경영지원팀</div></div>
+          <div class="person-detail"><div class="person-date">4월 8일</div></div>
+        </div>
+      </div></div>
+    </div>`,
+  anniversary: `
     <div class="card anniversary">
       <div class="card-header">
         <div class="card-icon">🏢</div>
-        <div>
-          <div class="card-title">입사기념일</div>
-          <div class="card-subtitle">4월 입사기념 4명</div>
-        </div>
+        <div><div class="card-title">입사기념일</div><div class="card-subtitle">4월 입사기념 4명</div></div>
       </div>
-      <div class="card-body">
-        <div class="person-list">
-          <div class="person-row">
-            <div class="person-avatar avatar-blue">정</div>
-            <div class="person-info">
-              <div class="person-name">정유진 <span style="font-size:14px;color:#94a3b8;font-weight:500">과장</span></div>
-              <div class="person-dept">가산 특수시험팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2019. 4. 28</div>
-              <span class="person-badge badge-year">7주년 🎊</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-blue">한</div>
-            <div class="person-info">
-              <div class="person-name">한소희 <span style="font-size:14px;color:#94a3b8;font-weight:500">대리</span></div>
-              <div class="person-dept">문정 임상2팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2022. 4. 11</div>
-              <span class="person-badge badge-year">4주년</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-blue">오</div>
-            <div class="person-info">
-              <div class="person-name">오세영 <span style="font-size:14px;color:#94a3b8;font-weight:500">주임</span></div>
-              <div class="person-dept">문정 임상1팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2024. 4. 1</div>
-              <span class="person-badge badge-year">2주년</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-blue">강</div>
-            <div class="person-info">
-              <div class="person-name">강민호 <span style="font-size:14px;color:#94a3b8;font-weight:500">팀원</span></div>
-              <div class="person-dept">가산 시험검사팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2025. 4. 15</div>
-              <span class="person-badge badge-year">1주년</span>
-            </div>
-          </div>
+      <div class="card-body"><div class="person-list">
+        <div class="person-row">
+          <div class="person-avatar avatar-blue">정</div>
+          <div class="person-info"><div class="person-name">정유진 <span class="person-rank">과장</span></div><div class="person-dept">가산 특수시험팀</div></div>
+          <div class="person-detail"><div class="person-date">2019. 4. 28</div><span class="person-badge badge-year">7주년 🎊</span></div>
         </div>
-      </div>
-    </div>
-
-    <!-- ③ 결혼 -->
+        <div class="person-row">
+          <div class="person-avatar avatar-blue">한</div>
+          <div class="person-info"><div class="person-name">한소희 <span class="person-rank">대리</span></div><div class="person-dept">문정 임상2팀</div></div>
+          <div class="person-detail"><div class="person-date">2022. 4. 11</div><span class="person-badge badge-year">4주년</span></div>
+        </div>
+        <div class="person-row">
+          <div class="person-avatar avatar-blue">오</div>
+          <div class="person-info"><div class="person-name">오세영 <span class="person-rank">주임</span></div><div class="person-dept">문정 임상1팀</div></div>
+          <div class="person-detail"><div class="person-date">2024. 4. 1</div><span class="person-badge badge-year">2주년</span></div>
+        </div>
+        <div class="person-row">
+          <div class="person-avatar avatar-blue">강</div>
+          <div class="person-info"><div class="person-name">강민호 <span class="person-rank">팀원</span></div><div class="person-dept">가산 시험검사팀</div></div>
+          <div class="person-detail"><div class="person-date">2025. 4. 15</div><span class="person-badge badge-year">1주년</span></div>
+        </div>
+      </div></div>
+    </div>`,
+  wedding: `
     <div class="card wedding">
       <div class="card-header">
         <div class="card-icon">💐</div>
-        <div>
-          <div class="card-title">결혼</div>
-          <div class="card-subtitle">축하드립니다</div>
-        </div>
+        <div><div class="card-title">결혼</div><div class="card-subtitle">축하드립니다</div></div>
       </div>
-      <div class="card-body">
-        <div class="person-list">
-          <div class="person-row">
-            <div class="person-avatar avatar-pink">송</div>
-            <div class="person-info">
-              <div class="person-name">송예린 <span style="font-size:14px;color:#94a3b8;font-weight:500">연구원</span></div>
-              <div class="person-dept">문정 임상1팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2026. 5. 10 (토)</div>
-              <span class="person-badge badge-wedding">D-12</span>
-            </div>
-          </div>
-          <div class="person-row">
-            <div class="person-avatar avatar-pink">윤</div>
-            <div class="person-info">
-              <div class="person-name">윤성호 <span style="font-size:14px;color:#94a3b8;font-weight:500">대리</span></div>
-              <div class="person-dept">가산 특수시험팀</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2026. 5. 24 (토)</div>
-              <span class="person-badge badge-wedding">D-26</span>
-            </div>
-          </div>
+      <div class="card-body"><div class="person-list">
+        <div class="person-row">
+          <div class="person-avatar avatar-pink">송</div>
+          <div class="person-info"><div class="person-name">송예린 <span class="person-rank">연구원</span></div><div class="person-dept">문정 임상1팀</div></div>
+          <div class="person-detail"><div class="person-date">2026. 5. 10 (토)</div><span class="person-badge badge-wedding">D-12</span></div>
         </div>
-      </div>
-    </div>
-
-    <!-- ④ 부고 -->
+        <div class="person-row">
+          <div class="person-avatar avatar-pink">윤</div>
+          <div class="person-info"><div class="person-name">윤성호 <span class="person-rank">대리</span></div><div class="person-dept">가산 특수시험팀</div></div>
+          <div class="person-detail"><div class="person-date">2026. 5. 24 (토)</div><span class="person-badge badge-wedding">D-26</span></div>
+        </div>
+      </div></div>
+    </div>`,
+  condolence: `
     <div class="card condolence">
       <div class="card-header">
         <div class="card-icon">🕯️</div>
-        <div>
-          <div class="card-title">부고</div>
-          <div class="card-subtitle">삼가 고인의 명복을 빕니다</div>
-        </div>
+        <div><div class="card-title">부고</div><div class="card-subtitle">삼가 고인의 명복을 빕니다</div></div>
       </div>
-      <div class="card-body">
-        <div class="person-list">
-          <div class="person-row condolence-row">
-            <div class="person-avatar avatar-gray">임</div>
-            <div class="person-info">
-              <div class="person-name">임채원 <span style="font-size:14px;color:#94a3b8;font-weight:500">과장</span></div>
-              <div class="person-dept">문정 비임상팀</div>
-              <div class="condolence-detail" style="margin-top:4px;">부친상 · 빈소: 서울성모병원 장례식장</div>
-            </div>
-            <div class="person-detail">
-              <div class="person-date">2026. 4. 26</div>
-              <div style="font-size:13px;color:#94a3b8;margin-top:4px;">발인 4. 28 (월)</div>
-            </div>
+      <div class="card-body"><div class="person-list">
+        <div class="person-row">
+          <div class="person-avatar avatar-gray">임</div>
+          <div class="person-info">
+            <div class="person-name">임채원 <span class="person-rank">과장</span></div>
+            <div class="person-dept">문정 비임상팀</div>
+            <div class="condolence-detail" style="margin-top:6px;">부친상 · 빈소: 서울성모병원 장례식장</div>
           </div>
+          <div class="person-detail"><div class="person-date">2026. 4. 26</div><div style="font-size:14px;color:#94a3b8;margin-top:4px;">발인 4. 28 (월)</div></div>
         </div>
-      </div>
-    </div>
+      </div></div>
+    </div>`
+};
 
-  </div><!-- /grid -->
-</div><!-- /page -->
+var scenarios = {
+  4: ['birthday', 'anniversary', 'wedding', 'condolence'],
+  3: ['birthday', 'anniversary', 'wedding'],
+  2: ['birthday', 'anniversary'],
+  1: ['birthday']
+};
+
+function show(n) {
+  var grid = document.getElementById('grid');
+  var keys = scenarios[n];
+  grid.setAttribute('data-count', keys.length);
+  grid.innerHTML = keys.map(function(k) { return cards[k]; }).join('');
+  var btns = document.querySelectorAll('.scenario-btn');
+  for (var i = 0; i < btns.length; i++) {
+    btns[i].className = 'scenario-btn' + (btns[i].textContent.indexOf(n + '개') >= 0 ? ' active' : '');
+  }
+}
+
+show(4);
+</script>
 </body>
 </html>
