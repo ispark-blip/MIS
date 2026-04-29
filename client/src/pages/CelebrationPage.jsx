@@ -333,9 +333,21 @@ export default function CelebrationPage() {
     );
   }
 
-  var hasRow1 = row1.length > 0;
-  var hasRow2 = row2.length > 0;
-  var rowTemplate = hasRow1 && hasRow2 ? '3fr 2fr' : '1fr';
+  // 카테고리 개수에 따라 레이아웃 결정
+  // 1~4개: 단일 행, 카테고리 수만큼 균등 분할
+  // 5개: 기존 3+2 (3fr / 2fr)
+  var allCards = row1.concat(row2);
+  var n = allCards.length;
+  var grid;
+  if (n >= 5) {
+    grid = [
+      { rowFr: '3fr', cards: allCards.slice(0, 3) },
+      { rowFr: '2fr', cards: allCards.slice(3) },
+    ];
+  } else {
+    grid = [{ rowFr: '1fr', cards: allCards }];
+  }
+  var rowTemplate = grid.map(function (g) { return g.rowFr; }).join(' ');
 
   function renderRow(cards) {
     return cards.map(function (c) {
@@ -365,16 +377,17 @@ export default function CelebrationPage() {
       </div>
 
       <div style={{ flex: 1, display: 'grid', gridTemplateRows: rowTemplate, gap: 24, minHeight: 0 }}>
-        {hasRow1 && (
-          <div style={{ display: 'grid', gridTemplateColumns: row1.map(function () { return '1fr'; }).join(' '), gap: 24, minHeight: 0 }}>
-            {renderRow(row1)}
-          </div>
-        )}
-        {hasRow2 && (
-          <div style={{ display: 'grid', gridTemplateColumns: row2.map(function () { return '1fr'; }).join(' '), gap: 24, minHeight: 0 }}>
-            {renderRow(row2)}
-          </div>
-        )}
+        {grid.map(function (g, i) {
+          return (
+            <div key={i} style={{
+              display: 'grid',
+              gridTemplateColumns: g.cards.map(function () { return '1fr'; }).join(' '),
+              gap: 24, minHeight: 0,
+            }}>
+              {renderRow(g.cards)}
+            </div>
+          );
+        })}
       </div>
     </div>
   );
