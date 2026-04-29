@@ -3,15 +3,15 @@ import DashboardPage from './DashboardPage';
 import CelebrationPage from './CelebrationPage';
 import NoticePage from './NoticePage';
 
-// weight: 회전 1주기에서 차지하는 시간 비율 (대시보드:경조사:공지 = 3:1:1)
+// weight: 회전 1주기에서 차지하는 시간 비율 (대시보드:경조사:공지 = 2:1:1)
 var SCREENS = [
-  { key: 'dashboard', component: DashboardPage, weight: 3 },
+  { key: 'dashboard', component: DashboardPage, weight: 2 },
   { key: 'celebration', component: CelebrationPage, weight: 1 },
   { key: 'notice', component: NoticePage, weight: 1 },
 ];
 
-// 1단위(=weight 1) 노출 시간(초). DEFAULT 30 → 대시보드 90초, 나머지 30초씩.
-var DEFAULT_UNIT_SEC = 30;
+// 1단위(=weight 1) 노출 시간(초). DEFAULT 300 → 대시보드 600초(10분), 나머지 300초(5분)씩.
+var DEFAULT_UNIT_SEC = 300;
 
 export default function DashboardRotator() {
   var params = new URLSearchParams(window.location.search);
