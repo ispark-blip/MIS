@@ -27,16 +27,18 @@ var CATEGORY_COLORS = {
   condolence: 'linear-gradient(135deg, #94a3b8, #64748b)',
 };
 
-function MiniAvatar({ name, index, type }) {
-  var initial = name ? name.charAt(0) : '?';
+function MiniAvatar({ name, location, index, type }) {
+  var label = (location && String(location).trim()) || (name ? name.charAt(0) : '?');
+  var fontSize = label.length >= 2 ? 9 : 11;
   var bg = type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div style={{
       width: 24, height: 24, borderRadius: '50%', background: bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: 11, fontWeight: 700, color: '#fff', flexShrink: 0,
+      fontSize: fontSize, fontWeight: 700, color: '#fff', flexShrink: 0,
+      letterSpacing: label.length >= 2 ? '-0.5px' : 0,
     }}>
-      {initial}
+      {label}
     </div>
   );
 }
@@ -47,7 +49,7 @@ function MiniPersonRow({ person, index, type, children }) {
       display: 'flex', alignItems: 'center', gap: 7,
       padding: '4px 5px', borderRadius: 6, background: '#f8fafc', marginBottom: 2,
     }}>
-      <MiniAvatar name={person.name} index={index} type={type} />
+      <MiniAvatar name={person.name} location={person.location} index={index} type={type} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {person.name}
@@ -71,7 +73,7 @@ function MiniCondolenceRow({ person, index }) {
       display: 'flex', alignItems: 'center', gap: 7,
       padding: '4px 5px', borderRadius: 6, background: '#f8fafc', marginBottom: 2,
     }}>
-      <MiniAvatar name={person.name} index={index} type="condolence" />
+      <MiniAvatar name={person.name} location={person.location} index={index} type="condolence" />
       <div style={{ flex: 1, minWidth: 0 }}>
         {person.detail && <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
         <div style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

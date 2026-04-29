@@ -38,16 +38,18 @@ var SIZES = {
   xs: { avatar: 26, avatarFont: 12, name: 14, rank: 11, dept: 11, rowPad: 4, rowGap: 7, date: 13, badgeFont: 11, badgePad: '2px 7px', rowRadius: 6 },
 };
 
-function Avatar({ name, index, type, s }) {
-  var initial = name ? name.charAt(0) : '?';
+function Avatar({ name, location, index, type, s }) {
+  var label = (location && String(location).trim()) || (name ? name.charAt(0) : '?');
+  var fontSize = label.length >= 2 ? Math.round(s.avatarFont * 0.75) : s.avatarFont;
   var bg = type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div style={{
       width: s.avatar, height: s.avatar, borderRadius: '50%', background: bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      fontSize: s.avatarFont, fontWeight: 700, color: '#fff', flexShrink: 0,
+      fontSize: fontSize, fontWeight: 700, color: '#fff', flexShrink: 0,
+      letterSpacing: label.length >= 2 ? '-0.5px' : 0,
     }}>
-      {initial}
+      {label}
     </div>
   );
 }
@@ -70,7 +72,7 @@ function PersonRow({ person, index, type, s, children }) {
       display: 'flex', alignItems: 'center', gap: s.rowGap,
       padding: s.rowPad + 'px ' + (s.rowPad + 4) + 'px', borderRadius: s.rowRadius, background: '#f8fafc',
     }}>
-      <Avatar name={person.name} index={index} type={type} s={s} />
+      <Avatar name={person.name} location={person.location} index={index} type={type} s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
         <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {person.name}
@@ -95,7 +97,7 @@ function CondolenceRow({ person, index, s }) {
       display: 'flex', alignItems: 'center', gap: s.rowGap,
       padding: s.rowPad + 'px ' + (s.rowPad + 4) + 'px', borderRadius: s.rowRadius, background: '#f8fafc',
     }}>
-      <Avatar name={person.name} index={index} type="condolence" s={s} />
+      <Avatar name={person.name} location={person.location} index={index} type="condolence" s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
         {person.detail && <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
         <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>

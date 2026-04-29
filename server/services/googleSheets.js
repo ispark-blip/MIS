@@ -862,6 +862,7 @@ class GoogleSheetsService {
     const birthdays = [];
     const anniversaries = [];
     const newHires = [];
+    const locationByName = new Map();
 
     for (const row of employees) {
       if (!row || !row[0]) continue;
@@ -874,6 +875,9 @@ class GoogleSheetsService {
       if (status === '퇴직') continue;
       const contract = String(row[16] || '').trim().toUpperCase();
       if (contract === 'Y') continue;
+
+      if (location) locationByName.set(`${name}|${dept}`, location);
+      if (location && !locationByName.has(name)) locationByName.set(name, location);
 
       const bday = this._parseEmployeeBirthday(row[5]);
       if (bday && bday.month === curMonth && bday.day >= curDay) {
@@ -926,13 +930,15 @@ class GoogleSheetsService {
       const parsed = this._parseEmployeeDate(dateStr);
       const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
 
+      const location = locationByName.get(`${name}|${dept}`) || locationByName.get(name) || '';
+
       if (type === '결혼') {
         if (parsed && parsed >= todayStr && parsed <= weddingEndStr) {
-          weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+          weddings.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
         if (dday !== null && dday >= -5 && dday <= 5) {
-          condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
+          condolences.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
         }
       }
     }

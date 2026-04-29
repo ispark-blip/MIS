@@ -40,11 +40,18 @@ export default function SalesDonut({ data, layout }) {
     { name: '잔여', value: Math.max(totalTarget - totalActual, 0) },
   ];
 
-  const stackData = departments.map((d) => ({
-    name: d.name,
-    value: d.actual,
-    label: formatCurrency(d.actual),
-  }));
+  const stackData = departments.map((d) => {
+    const pct = totalActual > 0 ? (d.actual / totalActual) * 100 : 0;
+    const pctLabel = pct > 0 ? `${pct.toFixed(1)}%` : '';
+    const amountLabel = formatCurrency(d.actual);
+    return {
+      name: d.name,
+      value: d.actual,
+      label: amountLabel,
+      pctLabel,
+      combinedLabel: pctLabel ? `${amountLabel}  ${pctLabel}` : amountLabel,
+    };
+  });
 
   if (layout === 'signage') {
     return (
@@ -86,7 +93,14 @@ export default function SalesDonut({ data, layout }) {
                 <LabelList
                   dataKey="label"
                   position="top"
+                  offset={14}
                   style={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }}
+                />
+                <LabelList
+                  dataKey="pctLabel"
+                  position="top"
+                  offset={2}
+                  style={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
                 />
               </Bar>
             </BarChart>
@@ -127,14 +141,14 @@ export default function SalesDonut({ data, layout }) {
         {/* 부서별 가로 바 + 금액 표시 */}
         <div className="w-1/2 h-full">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 70, top: 5, bottom: 5 }}>
+            <BarChart data={stackData} layout="vertical" margin={{ left: 10, right: 110, top: 5, bottom: 5 }}>
               <XAxis type="number" hide />
               <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 15, fontWeight: 600 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
                 {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
-                  dataKey="label"
+                  dataKey="combinedLabel"
                   position="right"
                   style={{ fontSize: 16, fill: '#1e293b', fontWeight: 700 }}
                 />
