@@ -27,10 +27,24 @@ var CATEGORY_COLORS = {
   condolence: 'linear-gradient(135deg, #94a3b8, #64748b)',
 };
 
+var LOCATION_COLORS = {
+  '가산': 'linear-gradient(135deg, #6366f1, #4f46e5)',
+  '문정': 'linear-gradient(135deg, #14b8a6, #0d9488)',
+};
+
+function getLocationBg(location) {
+  if (!location) return null;
+  var key = String(location).trim();
+  if (LOCATION_COLORS[key]) return LOCATION_COLORS[key];
+  var hash = 0;
+  for (var i = 0; i < key.length; i++) hash = ((hash << 5) - hash) + key.charCodeAt(i);
+  return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
+}
+
 function MiniAvatar({ name, location, index, type }) {
   var label = (location && String(location).trim()) || (name ? name.charAt(0) : '?');
   var fontSize = label.length >= 2 ? 11 : 14;
-  var bg = type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length];
+  var bg = getLocationBg(location) || (type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length]);
   return (
     <div style={{
       width: 30, height: 30, borderRadius: '50%', background: bg,

@@ -52,7 +52,7 @@ function parseSheetDate(v) {
 
 class GoogleSheetsService {
   constructor(eventEmitter) {
-    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [], employees: null, celebrations: null };
+    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [], employees: null, celebrations: null, notices: null };
     this._lastExternalSync = 0;
     this.eventEmitter = eventEmitter;
     this.sheets = null;
@@ -816,6 +816,45 @@ class GoogleSheetsService {
     }
   }
 
+  async fetchNoticesData() {
+    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_EMPLOYEES) return null;
+    try {
+      const res = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
+        range: `'${sheetsConfig.SHEET_TAB_NOTICES}'!A2:F`,
+        valueRenderOption: 'FORMATTED_VALUE',
+      });
+      return res.data.values || [];
+    } catch (err) {
+      if (err.message && err.message.includes('Unable to parse range')) {
+        console.log(`[Sheets] 공지사항 탭 없음 ("${sheetsConfig.SHEET_TAB_NOTICES}"). 공지 없이 진행.`);
+      } else {
+        console.warn('[Sheets] 공지사항 조회 실패:', err.message);
+      }
+      return null;
+    }
+  }
+
+  getCachedNotices() {
+    const rows = this.cache.notices || [];
+    const list = [];
+    for (const row of rows) {
+      if (!row || !row[0]) continue;
+      const category = String(row[0] || '').trim();
+      const title = String(row[1] || '').trim();
+      const content = String(row[2] || '').trim();
+      const dateRaw = String(row[3] || '').trim();
+      const author = String(row[4] || '').trim();
+      const display = String(row[5] || 'Y').trim().toUpperCase();
+      if (display !== 'Y') continue;
+      if (!title) continue;
+      const parsed = this._parseEmployeeDate(dateRaw);
+      list.push({ category, title, content, date: parsed || dateRaw, author });
+    }
+    list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return list;
+  }
+
   _parseEmployeeBirthday(raw) {
     if (!raw) return null;
     const s = String(raw).replace(/[^0-9]/g, '');
@@ -953,12 +992,13 @@ class GoogleSheetsService {
   async fetchAndUpdate() {
     if (!this.initialized) return;
     try {
-      const [salesData, testCountsData, subjectsData, employeeData, celebrationsData] = await Promise.all([
+      const [salesData, testCountsData, subjectsData, employeeData, celebrationsData, noticesData] = await Promise.all([
         this.fetchSalesData(),
         this.fetchTestCountsData(),
         this.fetchSubjectsData(),
         this.fetchEmployeeData(),
         this.fetchCelebrationsData(),
+        this.fetchNoticesData(),
       ]);
 
       let changed = false;
@@ -1010,6 +1050,16 @@ class GoogleSheetsService {
           this.cache.celebrations = celebrationsData;
           changed = true;
           if (this.eventEmitter) this.eventEmitter('celebrations-update', { source: 'sheets' });
+        }
+      }
+
+      if (noticesData !== undefined) {
+        const newHash = JSON.stringify(noticesData);
+        const oldHash = JSON.stringify(this.cache.notices);
+        if (newHash !== oldHash) {
+          this.cache.notices = noticesData;
+          changed = true;
+          if (this.eventEmitter) this.eventEmitter('notices-update', { source: 'sheets' });
         }
       }
 

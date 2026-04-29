@@ -3,6 +3,24 @@ import useDashboardStore from '../../stores/dashboardStore';
 import { formatCurrency, formatAxisLabel } from '../../utils/formatCurrency';
 import { getDeptColor } from '../../utils/deptColors';
 
+function HorizontalRateLabel(props) {
+  const { x, y, width, height, value } = props;
+  if (value == null) return null;
+  const text = `${value}%`;
+  if (width >= 52) {
+    return (
+      <text x={x + width - 6} y={y + height / 2}
+        fill="#ffffff" fontSize={13} fontWeight={700}
+        textAnchor="end" dominantBaseline="central">{text}</text>
+    );
+  }
+  return (
+    <text x={x + width + 62} y={y + height / 2}
+      fill="#64748b" fontSize={12} fontWeight={700}
+      textAnchor="start" dominantBaseline="central">{text}</text>
+  );
+}
+
 export default function QuarterlyBar({ data, horizontal }) {
   const { selectedQuarter, setSelectedQuarter } = useDashboardStore();
   const quarters = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -41,7 +59,7 @@ export default function QuarterlyBar({ data, horizontal }) {
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           {horizontal ? (
-            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 90, left: 5, bottom: 5 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 130, left: 5, bottom: 5 }}>
               <XAxis type="number" tickFormatter={formatAxisLabel} tick={{ fontSize: 12 }} />
               <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 16, fontWeight: 700, fill: '#1e293b' }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
@@ -54,12 +72,7 @@ export default function QuarterlyBar({ data, horizontal }) {
                   position="right"
                   style={{ fontSize: 16, fill: '#1e293b', fontWeight: 800 }}
                 />
-                <LabelList
-                  dataKey="rate"
-                  position="insideRight"
-                  formatter={(v) => `${v}%`}
-                  style={{ fontSize: 13, fill: '#ffffff', fontWeight: 700 }}
-                />
+                <LabelList dataKey="rate" content={<HorizontalRateLabel />} />
               </Bar>
             </BarChart>
           ) : (

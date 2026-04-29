@@ -32,6 +32,8 @@ module.exports = {
   SHEET_RANGE_EMPLOYEES: process.env.SHEET_RANGE_EMPLOYEES || '인원현황!A2:Q',
   // 경조사 (결혼/부고) - 직원 시트 내 별도 탭
   SHEET_TAB_CELEBRATIONS: process.env.SHEET_TAB_CELEBRATIONS || '경조사',
+  // 공지사항 - 직원 시트 내 별도 탭
+  SHEET_TAB_NOTICES: process.env.SHEET_TAB_NOTICES || '공지사항',
 
   // 외부 시험대상자 시트 (자동 동기화)
   EXTERNAL_MJ_SHEET_ID: process.env.EXTERNAL_MJ_SHEET_ID || '1joJpN5F4H4nNCCkd36JuHnHIHzNyyLXwk_Lt07YZXKE',
