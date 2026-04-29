@@ -222,28 +222,34 @@ function NoticePanel({ notices }) {
           var borderColor = n.category === '긴급' ? '#ef4444' : '#3b82f6';
           return (
             <div key={i} style={{
-              padding: '8px 10px', borderRadius: 6, background: '#f8fafc',
-              borderLeft: '3px solid ' + borderColor,
+              padding: '10px 12px', borderRadius: 8, background: '#f8fafc',
+              borderLeft: '4px solid ' + borderColor,
             }}>
-              <span style={{
-                display: 'inline-block', padding: '1px 7px', borderRadius: 8,
-                fontSize: 9, fontWeight: 700, marginBottom: 3, ...catStyle,
-              }}>
-                {n.category || '일반'}
-              </span>
-              <div style={{ fontSize: 13, fontWeight: 700, color: '#1e293b', marginBottom: 2, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                {n.title}
+              {/* 1행: 카테고리 + 제목 */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
+                <span style={{
+                  display: 'inline-block', padding: '3px 10px', borderRadius: 10,
+                  fontSize: 11, fontWeight: 700, flexShrink: 0, ...catStyle,
+                }}>
+                  {n.category || '일반'}
+                </span>
+                <div style={{ fontSize: 17, fontWeight: 800, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', flex: 1, minWidth: 0 }}>
+                  {n.title}
+                </div>
               </div>
+              {/* 2행: 내용 */}
               {n.content && (
                 <div style={{
-                  fontSize: 11, color: '#475569', lineHeight: 1.4, marginTop: 3,
-                  display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+                  fontSize: 14, color: '#334155', fontWeight: 500, lineHeight: 1.45, marginBottom: 6,
+                  display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden',
                 }}>
                   {n.content}
                 </div>
               )}
-              <div style={{ fontSize: 10, color: '#94a3b8', marginTop: 3 }}>
-                {n.date}{n.author ? ' · ' + n.author : ''}
+              {/* 3행: 날짜 + 작성자 */}
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontSize: 11, color: '#94a3b8', fontWeight: 500 }}>
+                <span>{n.date}</span>
+                {n.author && <span>{n.author}</span>}
               </div>
             </div>
           );
