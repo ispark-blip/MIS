@@ -151,7 +151,7 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }
           <div style={{ fontSize: subtitleFont, color: '#94a3b8', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: items.length <= 2 ? 'flex-start' : 'center', paddingTop: items.length <= 2 ? 12 : undefined }}>
+      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 12 }}>
         <div style={gridBodyStyle}>
           {items}
         </div>
@@ -319,7 +319,7 @@ export default function CelebrationPage() {
 
   var hasRow1 = row1.length > 0;
   var hasRow2 = row2.length > 0;
-  var rowTemplate = hasRow1 && hasRow2 ? '2fr 1fr' : '1fr';
+  var rowTemplate = hasRow1 && hasRow2 ? '3fr 2fr' : '1fr';
 
   function renderRow(cards) {
     return cards.map(function (c) {
