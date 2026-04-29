@@ -319,7 +319,7 @@ export default function CelebrationPage() {
 
   var hasRow1 = row1.length > 0;
   var hasRow2 = row2.length > 0;
-  var rowTemplate = hasRow1 && hasRow2 ? '1fr 1fr' : '1fr';
+  var rowTemplate = hasRow1 && hasRow2 ? '2fr 1fr' : '1fr';
 
   function renderRow(cards) {
     return cards.map(function (c) {
