@@ -3,6 +3,7 @@ import LoginPage from './pages/LoginPage';
 import DashboardPage from './pages/DashboardPage';
 import DashboardRotator from './pages/DashboardRotator';
 import CelebrationPage from './pages/CelebrationPage';
+import CombinedDashboardPage from './pages/CombinedDashboardPage';
 import AdminPage from './pages/AdminPage';
 import TestCountInputPage from './pages/TestCountInputPage';
 import SubjectInputPage from './pages/SubjectInputPage';
@@ -12,7 +13,7 @@ export default function App() {
     <Routes>
       <Route path="/login" element={<LoginPage />} />
       <Route path="/dashboard" element={<DashboardPage />} />
-      <Route path="/signage" element={<DashboardRotator />} />
+      <Route path="/signage" element={<CombinedDashboardPage />} />
       <Route path="/celebration" element={<CelebrationPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/input/test-counts" element={<TestCountInputPage />} />

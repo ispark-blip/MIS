@@ -53,6 +53,7 @@ app.use('/api/admin', require('./routes/admin'));
 app.use('/api/settings', require('./routes/settings'));
 app.use('/api/config', require('./routes/config'));
 app.use('/api/celebrations', require('./routes/celebrations'));
+app.use('/api/notices', require('./routes/notices'));
 
 // 업로드 파일 서빙 (로고 등)
 app.use('/uploads', express.static(path.join(__dirname, '..', 'data', 'uploads')));
