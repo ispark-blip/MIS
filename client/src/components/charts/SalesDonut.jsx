@@ -29,7 +29,7 @@ function DonutCenterLabel({ viewBox, achievementRate }) {
   );
 }
 
-export default function SalesDonut({ data }) {
+export default function SalesDonut({ data, layout }) {
   if (!data || !Array.isArray(data.departments)) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
   }
@@ -45,6 +45,56 @@ export default function SalesDonut({ data }) {
     value: d.actual,
     label: formatCurrency(d.actual),
   }));
+
+  if (layout === 'signage') {
+    return (
+      <div className="h-full flex flex-col gap-1 min-h-0">
+        {/* 수치 표시 */}
+        <div className="flex items-center justify-center gap-4 flex-wrap shrink-0">
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm text-gray-500">목표</span>
+            <span className="text-2xl font-bold">{formatCurrency(totalTarget)}</span>
+          </div>
+          <div className="flex items-baseline gap-1.5">
+            <span className="text-sm text-gray-500">달성</span>
+            <span className="text-2xl font-bold">{formatCurrency(totalActual)}</span>
+          </div>
+        </div>
+
+        {/* 도넛 (상단) */}
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <PieChart>
+              <Pie data={pieData} dataKey="value" cx="50%" cy="50%" innerRadius="50%" outerRadius="92%" startAngle={90} endAngle={-270}>
+                <Cell fill={getAchievementColor(achievementRate)} />
+                <Cell fill="#e2e8f0" />
+                <LabelList content={<DonutCenterLabel achievementRate={achievementRate} />} position="center" />
+              </Pie>
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+
+        {/* 부서별 세로 바 (하단) */}
+        <div className="flex-1 min-h-0">
+          <ResponsiveContainer width="100%" height="100%">
+            <BarChart data={stackData} margin={{ top: 22, right: 8, left: 8, bottom: 4 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600 }} interval={0} />
+              <YAxis hide />
+              <Tooltip formatter={(v) => formatCurrency(v)} />
+              <Bar dataKey="value" radius={[4, 4, 0, 0]}>
+                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
+                <LabelList
+                  dataKey="label"
+                  position="top"
+                  style={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }}
+                />
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="h-full flex flex-col gap-2 min-h-0">

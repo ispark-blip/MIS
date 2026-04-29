@@ -307,7 +307,7 @@ export default function CombinedDashboardPage() {
             <span className="text-base font-bold text-slate-700">전사 목표 vs 누적매출</span>
           </div>
           <div style={{ flex: 1, padding: 8, minHeight: 0 }}>
-            <ChartErrorBoundary resetKey={salesData}><SalesDonut data={salesData} /></ChartErrorBoundary>
+            <ChartErrorBoundary resetKey={salesData}><SalesDonut data={salesData} layout="signage" /></ChartErrorBoundary>
           </div>
         </section>
 
@@ -321,7 +321,7 @@ export default function CombinedDashboardPage() {
             <span className="text-base font-bold text-slate-700">부서별 분기 매출</span>
           </div>
           <div style={{ flex: 1, padding: 8, minHeight: 0 }}>
-            <ChartErrorBoundary resetKey={quarterlyData}><QuarterlyBar data={quarterlyData} /></ChartErrorBoundary>
+            <ChartErrorBoundary resetKey={quarterlyData}><QuarterlyBar data={quarterlyData} horizontal /></ChartErrorBoundary>
           </div>
         </section>
 
@@ -336,7 +336,7 @@ export default function CombinedDashboardPage() {
             {testCountRefDate && <span className="text-sm font-bold text-blue-600">(기준일: {testCountRefDate})</span>}
           </div>
           <div style={{ flex: 1, padding: 8, minHeight: 0 }}>
-            <ChartErrorBoundary resetKey={testCountData}><TestCountTable data={testCountData} /></ChartErrorBoundary>
+            <ChartErrorBoundary resetKey={testCountData}><TestCountTable data={testCountData} hideChart /></ChartErrorBoundary>
           </div>
         </section>
 
@@ -350,7 +350,7 @@ export default function CombinedDashboardPage() {
             {subjectRefDate && <span className="text-sm font-bold text-blue-600">(기준일: {subjectRefDate})</span>}
           </div>
           <div style={{ flex: 1, padding: 8, minHeight: 0 }}>
-            <ChartErrorBoundary resetKey={subjectData}><SubjectCards data={subjectData} /></ChartErrorBoundary>
+            <ChartErrorBoundary resetKey={subjectData}><SubjectCards data={subjectData} hideChart /></ChartErrorBoundary>
           </div>
         </section>
       </div>
