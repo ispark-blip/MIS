@@ -60,9 +60,9 @@ export default function DashboardPage() {
     <div className="min-h-screen md:h-screen flex flex-col bg-gray-50">
       <Header onLogout={logout} />
 
-      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 auto-rows-[minmax(60vh,1fr)] md:grid-rows-[3fr_2fr] md:auto-rows-auto gap-0 bg-slate-700">
+      <div className="flex-1 min-h-0 grid grid-cols-1 md:grid-cols-2 auto-rows-[minmax(60vh,1fr)] md:grid-rows-[3fr_2fr] md:auto-rows-auto bg-slate-700" style={{ gap: 5 }}>
         {/* Q1: 전사 목표 vs 누적 */}
-        <section className="bg-gray-50 border-b-[5px] md:border-r-[5px] md:border-b-[5px] border-slate-700 flex flex-col min-h-0">
+        <section className="bg-gray-50 flex flex-col min-h-0">
           <div className="bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 border-b border-gray-200 shrink-0">
             <TrendingUp size={22} className="text-slate-600 shrink-0 sm:w-7 sm:h-7" />
             <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-700">전사 목표 vs 누적매출</span>
@@ -73,7 +73,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Q2: 부서별 분기 매출 */}
-        <section className="bg-gray-50 border-b-[5px] md:border-b-[5px] border-slate-700 flex flex-col min-h-0">
+        <section className="bg-gray-50 flex flex-col min-h-0">
           <div className="bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 border-b border-gray-200 shrink-0">
             <BarChart3 size={22} className="text-slate-600 shrink-0 sm:w-7 sm:h-7" />
             <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-700">부서별 분기 매출</span>
@@ -84,7 +84,7 @@ export default function DashboardPage() {
         </section>
 
         {/* Q3: 일일 시험건수 */}
-        <section className="bg-gray-50 border-b-[5px] md:border-b-0 md:border-r-[5px] border-slate-700 flex flex-col min-h-0">
+        <section className="bg-gray-50 flex flex-col min-h-0">
           <div className="bg-slate-50 px-3 sm:px-4 py-2 sm:py-3 flex items-center gap-2 sm:gap-3 border-b border-gray-200 shrink-0">
             <ClipboardList size={22} className="text-slate-600 shrink-0 sm:w-7 sm:h-7" />
             <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-700">일일 시험건수</span>
