@@ -15,8 +15,8 @@ function HorizontalRateLabel(props) {
     );
   }
   return (
-    <text x={x + width + 62} y={y + height / 2}
-      fill="#64748b" fontSize={12} fontWeight={700}
+    <text x={x + width + 78} y={y + height / 2}
+      fill="#64748b" fontSize={13} fontWeight={700}
       textAnchor="start" dominantBaseline="central">{text}</text>
   );
 }
@@ -59,7 +59,7 @@ export default function QuarterlyBar({ data, horizontal }) {
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           {horizontal ? (
-            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 130, left: 5, bottom: 5 }}>
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 150, left: 5, bottom: 5 }}>
               <XAxis type="number" tickFormatter={formatAxisLabel} tick={{ fontSize: 12 }} />
               <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 16, fontWeight: 700, fill: '#1e293b' }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
@@ -70,7 +70,7 @@ export default function QuarterlyBar({ data, horizontal }) {
                 <LabelList
                   dataKey="actualLabel"
                   position="right"
-                  style={{ fontSize: 16, fill: '#1e293b', fontWeight: 800 }}
+                  style={{ fontSize: 20, fill: '#1e293b', fontWeight: 800 }}
                 />
                 <LabelList dataKey="rate" content={<HorizontalRateLabel />} />
               </Bar>

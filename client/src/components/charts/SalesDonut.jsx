@@ -50,14 +50,14 @@ export default function SalesDonut({ data, layout }) {
     return (
       <div className="h-full flex flex-col gap-1 min-h-0">
         {/* 수치 표시 */}
-        <div className="flex items-center justify-center gap-4 flex-wrap shrink-0">
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm text-gray-500">목표</span>
-            <span className="text-2xl font-bold">{formatCurrency(totalTarget)}</span>
+        <div className="flex items-center justify-center gap-5 flex-wrap shrink-0">
+          <div className="flex items-baseline gap-2">
+            <span className="text-base text-gray-500">목표</span>
+            <span className="text-4xl font-bold">{formatCurrency(totalTarget)}</span>
           </div>
-          <div className="flex items-baseline gap-1.5">
-            <span className="text-sm text-gray-500">달성</span>
-            <span className="text-2xl font-bold">{formatCurrency(totalActual)}</span>
+          <div className="flex items-baseline gap-2">
+            <span className="text-base text-gray-500">달성</span>
+            <span className="text-4xl font-bold">{formatCurrency(totalActual)}</span>
           </div>
         </div>
 
@@ -77,8 +77,8 @@ export default function SalesDonut({ data, layout }) {
         {/* 부서별 세로 바 (하단) */}
         <div className="flex-1 min-h-0">
           <ResponsiveContainer width="100%" height="100%">
-            <BarChart data={stackData} margin={{ top: 22, right: 8, left: 8, bottom: 4 }}>
-              <XAxis dataKey="name" tick={{ fontSize: 11, fontWeight: 600 }} interval={0} />
+            <BarChart data={stackData} margin={{ top: 32, right: 8, left: 8, bottom: 4 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 14, fontWeight: 700, fill: '#1e293b' }} interval={0} />
               <YAxis hide />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
@@ -86,7 +86,7 @@ export default function SalesDonut({ data, layout }) {
                 <LabelList
                   dataKey="label"
                   position="top"
-                  style={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }}
+                  style={{ fontSize: 20, fill: '#1e293b', fontWeight: 800 }}
                 />
               </Bar>
             </BarChart>
