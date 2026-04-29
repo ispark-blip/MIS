@@ -91,16 +91,9 @@ export default function SalesDonut({ data, layout }) {
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
                 {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
-                  dataKey="label"
+                  dataKey="combinedLabel"
                   position="top"
-                  offset={14}
                   style={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }}
-                />
-                <LabelList
-                  dataKey="pctLabel"
-                  position="top"
-                  offset={2}
-                  style={{ fontSize: 10, fill: '#64748b', fontWeight: 600 }}
                 />
               </Bar>
             </BarChart>

@@ -41,24 +41,24 @@ export default function QuarterlyBar({ data, horizontal }) {
       <div className="flex-1 min-h-0">
         <ResponsiveContainer width="100%" height="100%">
           {horizontal ? (
-            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 70, left: 5, bottom: 5 }}>
-              <XAxis type="number" tickFormatter={formatAxisLabel} tick={{ fontSize: 11 }} />
-              <YAxis type="category" dataKey="name" width={70} tick={{ fontSize: 12, fontWeight: 600 }} />
+            <BarChart data={chartData} layout="vertical" margin={{ top: 5, right: 90, left: 5, bottom: 5 }}>
+              <XAxis type="number" tickFormatter={formatAxisLabel} tick={{ fontSize: 12 }} />
+              <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 16, fontWeight: 700, fill: '#1e293b' }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
-              <Legend wrapperStyle={{ fontSize: 12 }} />
+              <Legend wrapperStyle={{ fontSize: 13 }} />
               <Bar dataKey="목표" fill="#cbd5e1" radius={[0, 2, 2, 0]} />
               <Bar dataKey="실적" radius={[0, 2, 2, 0]}>
                 {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
                   dataKey="actualLabel"
                   position="right"
-                  style={{ fontSize: 12, fill: '#1e293b', fontWeight: 700 }}
+                  style={{ fontSize: 16, fill: '#1e293b', fontWeight: 800 }}
                 />
                 <LabelList
                   dataKey="rate"
                   position="insideRight"
                   formatter={(v) => `${v}%`}
-                  style={{ fontSize: 11, fill: '#ffffff', fontWeight: 700 }}
+                  style={{ fontSize: 13, fill: '#ffffff', fontWeight: 700 }}
                 />
               </Bar>
             </BarChart>

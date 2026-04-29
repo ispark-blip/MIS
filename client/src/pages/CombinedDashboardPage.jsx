@@ -29,11 +29,11 @@ var CATEGORY_COLORS = {
 
 function MiniAvatar({ name, location, index, type }) {
   var label = (location && String(location).trim()) || (name ? name.charAt(0) : '?');
-  var fontSize = label.length >= 2 ? 9 : 11;
+  var fontSize = label.length >= 2 ? 11 : 14;
   var bg = type ? CATEGORY_COLORS[type] : AVATAR_COLORS[index % AVATAR_COLORS.length];
   return (
     <div style={{
-      width: 24, height: 24, borderRadius: '50%', background: bg,
+      width: 30, height: 30, borderRadius: '50%', background: bg,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
       fontSize: fontSize, fontWeight: 700, color: '#fff', flexShrink: 0,
       letterSpacing: label.length >= 2 ? '-0.5px' : 0,
@@ -46,21 +46,21 @@ function MiniAvatar({ name, location, index, type }) {
 function MiniPersonRow({ person, index, type, children }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 7,
-      padding: '4px 5px', borderRadius: 6, background: '#f8fafc', marginBottom: 2,
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '6px 7px', borderRadius: 6, background: '#f8fafc', marginBottom: 3,
     }}>
       <MiniAvatar name={person.name} location={person.location} index={index} type={type} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
           {person.name}
-          <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 3 }}>{person.rank}</span>
+          <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginLeft: 4 }}>{person.rank}</span>
         </div>
-        <div style={{ fontSize: 10, color: '#64748b', fontWeight: 500 }}>{person.dept}</div>
+        <div style={{ fontSize: 12, color: '#64748b', fontWeight: 500 }}>{person.dept}</div>
         {children}
       </div>
       <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: 11, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
-        {person._subDate && <div style={{ fontSize: 9, color: '#94a3b8', whiteSpace: 'nowrap' }}>{person._subDate}</div>}
+        {person._dateDisplay && <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
+        {person._subDate && <div style={{ fontSize: 11, color: '#94a3b8', whiteSpace: 'nowrap' }}>{person._subDate}</div>}
         {person._badge}
       </div>
     </div>
@@ -70,19 +70,19 @@ function MiniPersonRow({ person, index, type, children }) {
 function MiniCondolenceRow({ person, index }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: 7,
-      padding: '4px 5px', borderRadius: 6, background: '#f8fafc', marginBottom: 2,
+      display: 'flex', alignItems: 'center', gap: 8,
+      padding: '6px 7px', borderRadius: 6, background: '#f8fafc', marginBottom: 3,
     }}>
       <MiniAvatar name={person.name} location={person.location} index={index} type="condolence" />
       <div style={{ flex: 1, minWidth: 0 }}>
-        {person.detail && <div style={{ fontSize: 12, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
-        <div style={{ fontSize: 10, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          <span style={{ fontWeight: 700, color: '#1e293b' }}>{person.name}</span>
-          <span style={{ marginLeft: 4 }}>{person.rank}</span>
-          <span style={{ marginLeft: 4 }}>{person.dept}</span>
+        {person.detail && <div style={{ fontSize: 15, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
+        <div style={{ fontSize: 12, color: '#64748b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+          <span style={{ fontWeight: 700, color: '#1e293b', fontSize: 13 }}>{person.name}</span>
+          <span style={{ marginLeft: 5 }}>{person.rank}</span>
+          <span style={{ marginLeft: 5 }}>{person.dept}</span>
         </div>
       </div>
-      <div style={{ fontSize: 11, color: '#1e293b', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>
+      <div style={{ fontSize: 14, color: '#1e293b', fontWeight: 700, flexShrink: 0, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>
     </div>
   );
 }
@@ -90,8 +90,8 @@ function MiniCondolenceRow({ person, index }) {
 function MiniBadge({ text, bg, color }) {
   return (
     <span style={{
-      display: 'inline-block', padding: '1px 6px', borderRadius: 10,
-      fontSize: 9, fontWeight: 700, background: bg, color: color, whiteSpace: 'nowrap',
+      display: 'inline-block', padding: '2px 8px', borderRadius: 10,
+      fontSize: 11, fontWeight: 700, background: bg, color: color, whiteSpace: 'nowrap',
     }}>
       {text}
     </span>
@@ -101,14 +101,14 @@ function MiniBadge({ text, bg, color }) {
 function CelebSection({ emoji, title, count, children }) {
   if (!count) return null;
   return (
-    <div style={{ marginBottom: 12 }}>
+    <div style={{ marginBottom: 14 }}>
       <div style={{
-        display: 'flex', alignItems: 'center', gap: 5,
-        fontSize: 12, fontWeight: 700, color: '#1e293b',
-        padding: '4px 0 4px', borderBottom: '1px solid #f1f5f9', marginBottom: 4,
+        display: 'flex', alignItems: 'center', gap: 6,
+        fontSize: 15, fontWeight: 800, color: '#1e293b',
+        padding: '5px 0', borderBottom: '1px solid #f1f5f9', marginBottom: 5,
       }}>
-        <span style={{ fontSize: 13 }}>{emoji}</span> {title}
-        <span style={{ fontSize: 10, color: '#94a3b8', fontWeight: 500, marginLeft: 'auto' }}>{count}명</span>
+        <span style={{ fontSize: 16 }}>{emoji}</span> {title}
+        <span style={{ fontSize: 12, color: '#64748b', fontWeight: 600, marginLeft: 'auto' }}>{count}명</span>
       </div>
       {children}
     </div>
