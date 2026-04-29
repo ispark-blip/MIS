@@ -19,18 +19,39 @@ export default function TestCountTable({ data, hideChart }) {
         const color = getDeptColor(d.department, i);
         return (
           <div key={`${d.lab}-${d.department}`} className="border rounded-lg p-2 sm:p-3 min-h-0 overflow-hidden flex flex-col justify-center" style={{ borderColor: color + '40', background: color + '08' }}>
-            <div className="flex items-center justify-between gap-2">
+            <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-lg sm:text-xl lg:text-2xl truncate" style={{ color }}>{d.department}</h4>
                 <div className="text-xs text-gray-400">{d.lab}연구소</div>
-                <div className="mt-1">
-                  <span className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-none">
-                    {fmt(d.today)}<span className="text-sm text-gray-500 ml-1">건</span>
-                  </span>
-                </div>
-                <div className="mt-1 text-xs sm:text-sm text-gray-600 leading-tight">
-                  <div>당월 누적 <span className="font-semibold text-gray-800">{fmt(d.monthlyTotal)}</span>건</div>
-                  <div>{yy}년 누적 <span className="font-semibold text-gray-800">{fmt(d.annualTotal)}</span>건</div>
+
+                <div className="mt-2 flex items-end gap-3 sm:gap-4">
+                  {/* Hero: 오늘 */}
+                  <div>
+                    <div className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-none" style={{ color }}>
+                      {fmt(d.today)}<span className="text-sm font-medium text-gray-500 ml-0.5">건</span>
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">오늘</div>
+                  </div>
+
+                  <div className="w-px self-stretch bg-gray-200 mt-1"></div>
+
+                  {/* 당월 누적 */}
+                  <div>
+                    <div className="text-lg sm:text-xl lg:text-2xl font-bold leading-none text-gray-800">
+                      {fmt(d.monthlyTotal)}<span className="text-xs font-medium text-gray-500 ml-0.5">건</span>
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">당월 누적</div>
+                  </div>
+
+                  <div className="w-px self-stretch bg-gray-200 mt-1"></div>
+
+                  {/* 연 누적 */}
+                  <div>
+                    <div className="text-lg sm:text-xl lg:text-2xl font-bold leading-none text-gray-800">
+                      {fmt(d.annualTotal)}<span className="text-xs font-medium text-gray-500 ml-0.5">건</span>
+                    </div>
+                    <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">{yy}년 누적</div>
+                  </div>
                 </div>
               </div>
               {!hideChart && (
