@@ -802,7 +802,7 @@ class GoogleSheetsService {
     try {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
-        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:G`,
+        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:H`,
         valueRenderOption: 'FORMATTED_VALUE',
       });
       return res.data.values || [];
@@ -960,16 +960,17 @@ class GoogleSheetsService {
       const name = String(row[1] || '').trim();
       const dept = String(row[2] || '').trim();
       const rank = String(row[3] || '').trim();
-      const dateStr = String(row[4] || '').trim();
-      const detail = String(row[5] || '').trim();
-      const display = String(row[6] || 'Y').trim().toUpperCase();
+      const sheetLocation = String(row[4] || '').trim();
+      const dateStr = String(row[5] || '').trim();
+      const detail = String(row[6] || '').trim();
+      const display = String(row[7] || 'Y').trim().toUpperCase();
 
       if (display !== 'Y') continue;
 
       const parsed = this._parseEmployeeDate(dateStr);
       const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
 
-      const location = locationByName.get(`${name}|${dept}`) || locationByName.get(name) || '';
+      const location = sheetLocation || locationByName.get(`${name}|${dept}`) || locationByName.get(name) || '';
 
       if (type === '결혼') {
         if (parsed && parsed >= todayStr && parsed <= weddingEndStr) {
