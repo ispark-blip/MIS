@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
 import { ChevronDown, ChevronUp } from 'lucide-react';
+import useDashboardStore from '../../stores/dashboardStore';
 import { getDeptColor } from '../../utils/deptColors';
 
 const LAB_COLOR_MAP = { '문정': '#14b8a6', '가산': '#6366f1' };
@@ -10,6 +11,8 @@ const fmt = (n) => Number(n || 0).toLocaleString('ko-KR');
 
 export default function SubjectCards({ data, hideChart }) {
   const [expanded, setExpanded] = useState(null);
+  const selectedYear = useDashboardStore((s) => s.selectedYear) || new Date().getFullYear();
+  const yy = String(selectedYear).slice(-2);
 
   if (!Array.isArray(data) || data.length === 0) return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
 
@@ -27,12 +30,14 @@ export default function SubjectCards({ data, hideChart }) {
           >
             <div className="min-w-0 flex-1">
               <h4 className="font-bold text-lg sm:text-xl lg:text-2xl" style={{ color }}>{lab.lab}연구소</h4>
-              <div className="flex items-baseline gap-2 sm:gap-3 mt-1 flex-wrap">
+              <div className="mt-1">
                 <span className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-none">
                   {fmt(lab.today)}<span className="text-sm text-gray-500 ml-1">명</span>
                 </span>
-                <span className="text-xs sm:text-sm text-gray-500">월 {fmt(lab.monthlyTotal)}명</span>
-                <span className="text-xs sm:text-sm text-gray-500">연 {fmt(lab.annualTotal)}명</span>
+              </div>
+              <div className="mt-1 text-xs sm:text-sm text-gray-600 leading-tight">
+                <div>당월 누적 <span className="font-semibold text-gray-800">{fmt(lab.monthlyTotal)}</span>명</div>
+                <div>{yy}년 누적 <span className="font-semibold text-gray-800">{fmt(lab.annualTotal)}</span>명</div>
               </div>
             </div>
             {!hideChart && (

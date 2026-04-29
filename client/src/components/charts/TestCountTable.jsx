@@ -1,9 +1,13 @@
 import { LineChart, Line, ResponsiveContainer } from 'recharts';
+import useDashboardStore from '../../stores/dashboardStore';
 import { getDeptColor } from '../../utils/deptColors';
 
 const fmt = (n) => Number(n || 0).toLocaleString('ko-KR');
 
 export default function TestCountTable({ data, hideChart }) {
+  const selectedYear = useDashboardStore((s) => s.selectedYear) || new Date().getFullYear();
+  const yy = String(selectedYear).slice(-2);
+
   if (!Array.isArray(data) || data.length === 0) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
   }
@@ -19,12 +23,14 @@ export default function TestCountTable({ data, hideChart }) {
               <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-lg sm:text-xl lg:text-2xl truncate" style={{ color }}>{d.department}</h4>
                 <div className="text-xs text-gray-400">{d.lab}연구소</div>
-                <div className="flex items-baseline gap-2 mt-1 flex-wrap">
+                <div className="mt-1">
                   <span className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-none">
                     {fmt(d.today)}<span className="text-sm text-gray-500 ml-1">건</span>
                   </span>
-                  <span className="text-xs sm:text-sm text-gray-500">월 {fmt(d.monthlyTotal)}</span>
-                  <span className="text-xs sm:text-sm text-gray-500">연 {fmt(d.annualTotal)}</span>
+                </div>
+                <div className="mt-1 text-xs sm:text-sm text-gray-600 leading-tight">
+                  <div>당월 누적 <span className="font-semibold text-gray-800">{fmt(d.monthlyTotal)}</span>건</div>
+                  <div>{yy}년 누적 <span className="font-semibold text-gray-800">{fmt(d.annualTotal)}</span>건</div>
                 </div>
               </div>
               {!hideChart && (
