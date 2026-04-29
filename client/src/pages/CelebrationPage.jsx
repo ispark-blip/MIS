@@ -334,8 +334,9 @@ export default function CelebrationPage() {
   }
 
   // 카테고리 개수에 따라 레이아웃 결정
-  // 1~4개: 단일 행, 카테고리 수만큼 균등 분할
-  // 5개: 기존 3+2 (3fr / 2fr)
+  // 1~3개: 단일 행, N분할 (세로 균등)
+  // 4개: 2+2 (2행, 각 행 2분할)
+  // 5개 이상: 3+2 (첫 행 3, 둘째 행 2; 비율 3fr:2fr)
   var allCards = row1.concat(row2);
   var n = allCards.length;
   var grid;
@@ -343,6 +344,11 @@ export default function CelebrationPage() {
     grid = [
       { rowFr: '3fr', cards: allCards.slice(0, 3) },
       { rowFr: '2fr', cards: allCards.slice(3) },
+    ];
+  } else if (n === 4) {
+    grid = [
+      { rowFr: '1fr', cards: allCards.slice(0, 2) },
+      { rowFr: '1fr', cards: allCards.slice(2) },
     ];
   } else {
     grid = [{ rowFr: '1fr', cards: allCards }];
