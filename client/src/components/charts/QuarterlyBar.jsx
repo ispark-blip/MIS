@@ -64,7 +64,13 @@ export default function QuarterlyBar({ data, horizontal }) {
               <YAxis type="category" dataKey="name" width={95} tick={{ fontSize: 16, fontWeight: 700, fill: '#1e293b' }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Legend wrapperStyle={{ fontSize: 13 }} />
-              <Bar dataKey="목표" fill="#cbd5e1" radius={[0, 2, 2, 0]} />
+              <Bar dataKey="목표" fill="#cbd5e1" radius={[0, 2, 2, 0]}>
+                <LabelList
+                  dataKey="targetLabel"
+                  position="right"
+                  style={{ fontSize: 14, fill: '#64748b', fontWeight: 600 }}
+                />
+              </Bar>
               <Bar dataKey="실적" radius={[0, 2, 2, 0]}>
                 {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
                 <LabelList
