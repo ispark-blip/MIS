@@ -1,33 +1,45 @@
 import { useState, useEffect } from 'react';
 import DashboardPage from './DashboardPage';
 import CelebrationPage from './CelebrationPage';
+import NoticePage from './NoticePage';
 
+// weight: 회전 1주기에서 차지하는 시간 비율 (대시보드:경조사:공지 = 3:1:1)
 var SCREENS = [
-  { key: 'dashboard', component: DashboardPage },
-  { key: 'celebration', component: CelebrationPage },
+  { key: 'dashboard', component: DashboardPage, weight: 3 },
+  { key: 'celebration', component: CelebrationPage, weight: 1 },
+  { key: 'notice', component: NoticePage, weight: 1 },
 ];
 
-var DEFAULT_INTERVAL = 30;
+// 1단위(=weight 1) 노출 시간(초). DEFAULT 30 → 대시보드 90초, 나머지 30초씩.
+var DEFAULT_UNIT_SEC = 30;
 
 export default function DashboardRotator() {
   var params = new URLSearchParams(window.location.search);
   var fixedScreen = params.get('screen');
-  var intervalSec = parseInt(params.get('interval')) || DEFAULT_INTERVAL;
+  var unitSec = parseInt(params.get('interval')) || DEFAULT_UNIT_SEC;
 
   var [current, setCurrent] = useState(0);
   var [fade, setFade] = useState(true);
 
   useEffect(function () {
     if (fixedScreen) return;
-    var timer = setInterval(function () {
-      setFade(false);
-      setTimeout(function () {
-        setCurrent(function (prev) { return (prev + 1) % SCREENS.length; });
-        setFade(true);
-      }, 400);
-    }, intervalSec * 1000);
-    return function () { clearInterval(timer); };
-  }, [fixedScreen, intervalSec]);
+    var timer = null;
+    var schedule = function (idx) {
+      var holdMs = SCREENS[idx].weight * unitSec * 1000;
+      timer = setTimeout(function () {
+        setFade(false);
+        setTimeout(function () {
+          var next = (idx + 1) % SCREENS.length;
+          setCurrent(next);
+          setFade(true);
+          schedule(next);
+        }, 400);
+      }, holdMs);
+    };
+    schedule(current);
+    return function () { if (timer) clearTimeout(timer); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [fixedScreen, unitSec]);
 
   var screenIndex = current;
   if (fixedScreen) {
