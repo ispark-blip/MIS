@@ -1,0 +1,402 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>한피연 대시보드 - 통합 화면 목업</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: -apple-system, 'Malgun Gothic', sans-serif; background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%); height: 100vh; overflow: hidden; }
+
+.container {
+  display: flex;
+  width: 100%;
+  height: 100vh;
+  gap: 16px;
+  padding: 16px;
+}
+
+/* 대시보드 50% */
+.panel-dashboard {
+  flex: 0 0 50%;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  min-width: 0;
+}
+
+/* 경조사 25% */
+.panel-celebration {
+  flex: 0 0 calc(25% - 12px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+/* 공지사항 25% */
+.panel-notice {
+  flex: 0 0 calc(25% - 12px);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.card {
+  background: #fff;
+  border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+.card-header {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 14px 20px 10px;
+  border-bottom: 2px solid #f1f5f9;
+  flex-shrink: 0;
+}
+.card-header .icon {
+  width: 36px; height: 36px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; flex-shrink: 0;
+}
+.card-header .title { font-size: 17px; font-weight: 700; color: #1e293b; }
+.card-header .subtitle { font-size: 11px; color: #94a3b8; font-weight: 500; margin-top: 1px; }
+.card-body { flex: 1; padding: 8px 16px 12px; overflow: hidden; }
+
+/* 대시보드 내 카드들 */
+.dash-top { display: flex; gap: 12px; flex-shrink: 0; }
+.dash-top .card { flex: 1; height: 100px; }
+.dash-main { flex: 1; display: flex; gap: 12px; min-height: 0; }
+.dash-main .card { flex: 1; }
+
+/* 매출 미니 카드 */
+.metric { text-align: center; padding: 16px 8px; }
+.metric .label { font-size: 12px; color: #64748b; font-weight: 500; }
+.metric .value { font-size: 22px; font-weight: 800; color: #1e293b; margin-top: 6px; }
+.metric .sub { font-size: 11px; color: #10b981; margin-top: 2px; }
+
+/* 차트 placeholder */
+.chart-placeholder {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  background: linear-gradient(135deg, #f8fafc, #e2e8f0);
+  border-radius: 8px; color: #94a3b8; font-size: 13px;
+}
+
+/* 경조사 내 섹션들 */
+.celeb-section { margin-bottom: 8px; }
+.celeb-section-title {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 13px; font-weight: 700; color: #1e293b;
+  padding: 6px 0 4px; border-bottom: 1px solid #f1f5f9;
+  margin-bottom: 4px;
+}
+.celeb-section-title .emoji { font-size: 14px; }
+.celeb-section-title .count { font-size: 11px; color: #94a3b8; font-weight: 500; margin-left: auto; }
+
+.person-row {
+  display: flex; align-items: center; gap: 8px;
+  padding: 5px 6px; border-radius: 6px; background: #f8fafc; margin-bottom: 3px;
+}
+.avatar {
+  width: 28px; height: 28px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 700; color: #fff; flex-shrink: 0;
+}
+.person-info { flex: 1; min-width: 0; }
+.person-name { font-size: 13px; font-weight: 700; color: #1e293b; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.person-name .rank { font-size: 11px; color: #94a3b8; font-weight: 500; margin-left: 4px; }
+.person-dept { font-size: 11px; color: #64748b; }
+.person-date { font-size: 12px; color: #1e293b; font-weight: 700; text-align: right; flex-shrink: 0; white-space: nowrap; }
+.person-badge {
+  display: inline-block; padding: 2px 8px; border-radius: 12px;
+  font-size: 10px; font-weight: 700;
+}
+
+/* 공지사항 */
+.notice-item {
+  padding: 10px 12px; border-radius: 8px; background: #f8fafc;
+  margin-bottom: 6px; cursor: pointer;
+}
+.notice-item:hover { background: #f1f5f9; }
+.notice-category {
+  display: inline-block; padding: 2px 8px; border-radius: 10px;
+  font-size: 10px; font-weight: 700; margin-bottom: 4px;
+}
+.notice-title { font-size: 14px; font-weight: 700; color: #1e293b; margin-bottom: 3px;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.notice-meta { font-size: 11px; color: #94a3b8; }
+.notice-content { font-size: 12px; color: #475569; margin-top: 4px; line-height: 1.5;
+  display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+
+.notice-important { border-left: 3px solid #ef4444; }
+.notice-normal { border-left: 3px solid #3b82f6; }
+
+/* 레이아웃 선택 버튼 */
+.layout-selector {
+  position: fixed; bottom: 20px; left: 50%; transform: translateX(-50%);
+  display: flex; gap: 8px; background: rgba(0,0,0,0.8); padding: 10px 16px;
+  border-radius: 12px; z-index: 100;
+}
+.layout-btn {
+  padding: 8px 16px; border-radius: 8px; border: none;
+  font-size: 13px; font-weight: 600; cursor: pointer;
+  color: #fff; background: rgba(255,255,255,0.15); transition: all 0.2s;
+}
+.layout-btn:hover { background: rgba(255,255,255,0.25); }
+.layout-btn.active { background: #3b82f6; }
+
+/* 대시보드 테이블 */
+.mini-table { width: 100%; border-collapse: collapse; font-size: 11px; }
+.mini-table th { background: #f1f5f9; padding: 6px 8px; text-align: left; color: #64748b; font-weight: 600; position: sticky; top: 0; }
+.mini-table td { padding: 5px 8px; border-bottom: 1px solid #f8fafc; color: #1e293b; }
+.mini-table tr:nth-child(even) td { background: #fafbfc; }
+
+/* 경조사 패널 헤더 */
+.panel-header {
+  display: flex; align-items: center; gap: 8px;
+  padding: 12px 16px; flex-shrink: 0;
+}
+.panel-header h2 { font-size: 20px; font-weight: 800; color: #1e293b; }
+.panel-header .date { font-size: 13px; color: #64748b; font-weight: 500; }
+
+.panel-content {
+  flex: 1; background: #fff; border-radius: 16px;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.06), 0 4px 16px rgba(0,0,0,0.04);
+  padding: 16px; overflow: hidden; display: flex; flex-direction: column;
+}
+</style>
+</head>
+<body>
+
+<div class="container" id="layout-a">
+  <!-- 대시보드 50% -->
+  <div class="panel-dashboard">
+    <div class="dash-top">
+      <div class="card">
+        <div class="metric">
+          <div class="label">당월 매출</div>
+          <div class="value">12.4억</div>
+          <div class="sub">전월대비 +8.2%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="metric">
+          <div class="label">연간 누적</div>
+          <div class="value">48.7억</div>
+          <div class="sub">달성률 42%</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="metric">
+          <div class="label">금일 시험건수</div>
+          <div class="value">127건</div>
+          <div class="sub">월 누적 2,841건</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="metric">
+          <div class="label">시험대상자</div>
+          <div class="value">89명</div>
+          <div class="sub">전월대비 +12명</div>
+        </div>
+      </div>
+    </div>
+    <div class="dash-main">
+      <div class="card" style="flex: 3;">
+        <div class="card-header">
+          <div class="icon" style="background: #dbeafe;">📊</div>
+          <div><div class="title">부서별 매출현황</div><div class="subtitle">2026년 4월</div></div>
+        </div>
+        <div class="card-body" style="overflow-y: auto;">
+          <table class="mini-table">
+            <thead><tr><th>부서</th><th>당월</th><th>누적</th><th>목표</th><th>달성률</th></tr></thead>
+            <tbody>
+              <tr><td>은정 임상 1팀</td><td>3.2억</td><td>12.8억</td><td>15.0억</td><td>85%</td></tr>
+              <tr><td>은정 임상 2팀</td><td>2.8억</td><td>11.2억</td><td>14.0억</td><td>80%</td></tr>
+              <tr><td>문정 임상 1팀</td><td>2.1억</td><td>8.4억</td><td>10.0억</td><td>84%</td></tr>
+              <tr><td>문정 임상 2팀</td><td>1.9억</td><td>7.6억</td><td>9.0억</td><td>84%</td></tr>
+              <tr><td>가산 임상 1팀</td><td>1.5억</td><td>6.0억</td><td>8.0억</td><td>75%</td></tr>
+              <tr><td>CX팀</td><td>0.9억</td><td>2.7억</td><td>4.0억</td><td>68%</td></tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+      <div class="card" style="flex: 2;">
+        <div class="card-header">
+          <div class="icon" style="background: #fef3c7;">🧪</div>
+          <div><div class="title">시험건수 추이</div><div class="subtitle">최근 30일</div></div>
+        </div>
+        <div class="card-body">
+          <div class="chart-placeholder">
+            <div style="text-align:center;">
+              <div style="font-size:40px; margin-bottom:8px;">📈</div>
+              <div>시험건수 차트 영역</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 경조사 25% -->
+  <div class="panel-celebration">
+    <div class="panel-header">
+      <h2>경조사</h2>
+      <span class="date">2026년 4월</span>
+    </div>
+    <div class="panel-content">
+      <!-- 생일 -->
+      <div class="celeb-section">
+        <div class="celeb-section-title">
+          <span class="emoji">🎂</span> 이달의 생일
+          <span class="count">2명</span>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #f59e0b, #d97706);">박</div>
+          <div class="person-info">
+            <div class="person-name">박일상 <span class="rank">과장</span></div>
+            <div class="person-dept">피플팀</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="person-date">4월 29일</div>
+            <span class="person-badge" style="background:#fee2e2; color:#dc2626;">🎉 오늘</span>
+          </div>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #10b981, #059669);">김</div>
+          <div class="person-info">
+            <div class="person-name">김영수 <span class="rank">대리</span></div>
+            <div class="person-dept">문정 임상 1팀</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="person-date">4월 30일</div>
+            <span class="person-badge" style="background:#fef3c7; color:#b45309;">D-1</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- 신규입사 -->
+      <div class="celeb-section">
+        <div class="celeb-section-title">
+          <span class="emoji">🎉</span> 신규입사
+          <span class="count">3명</span>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #8b5cf6, #7c3aed);">안</div>
+          <div class="person-info">
+            <div class="person-name">안규중 <span class="rank">자문</span></div>
+            <div class="person-dept">자문/학술위원회</div>
+          </div>
+          <div class="person-date">04-01</div>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #14b8a6, #0d9488);">김</div>
+          <div class="person-info">
+            <div class="person-name">김윤희 <span class="rank">사원</span></div>
+            <div class="person-dept">문정 임상 1팀</div>
+          </div>
+          <div class="person-date">04-27</div>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #f97316, #ea580c);">민</div>
+          <div class="person-info">
+            <div class="person-name">민단아 <span class="rank">사원</span></div>
+            <div class="person-dept">CX팀(가산)</div>
+          </div>
+          <div class="person-date">04-30</div>
+        </div>
+      </div>
+
+      <!-- 입사기념일 -->
+      <div class="celeb-section">
+        <div class="celeb-section-title">
+          <span class="emoji">🏢</span> 입사기념일
+          <span class="count">1명</span>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #3b82f6, #2563eb);">박</div>
+          <div class="person-info">
+            <div class="person-name">박일상 <span class="rank">과장</span></div>
+            <div class="person-dept">피플팀</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="person-date" style="color: #2563eb;">10주년 🎊</div>
+            <div style="font-size:10px; color:#94a3b8;">2016-04-30</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 결혼 -->
+      <div class="celeb-section">
+        <div class="celeb-section-title">
+          <span class="emoji">💐</span> 결혼
+          <span class="count">1명</span>
+        </div>
+        <div class="person-row">
+          <div class="avatar" style="background: linear-gradient(135deg, #ec4899, #db2777);">테</div>
+          <div class="person-info">
+            <div class="person-name">테스트 <span class="rank">사원</span></div>
+            <div class="person-dept">인사총무팀</div>
+          </div>
+          <div style="text-align:right;">
+            <div class="person-date">05-31</div>
+            <span class="person-badge" style="background:#fce7f3; color:#be185d;">D-33</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- 공지사항 25% -->
+  <div class="panel-notice">
+    <div class="panel-header">
+      <h2>공지사항</h2>
+    </div>
+    <div class="panel-content" style="gap: 6px;">
+      <div class="notice-item notice-important">
+        <span class="notice-category" style="background:#fee2e2; color:#dc2626;">긴급</span>
+        <div class="notice-title">서버 점검 안내 (5/3 토요일)</div>
+        <div class="notice-content">5월 3일(토) 09:00~13:00 서버 정기점검이 진행됩니다. 해당 시간 동안 시스템 접속이 제한됩니다.</div>
+        <div class="notice-meta">2026-04-28 · 전산팀</div>
+      </div>
+      <div class="notice-item notice-normal">
+        <span class="notice-category" style="background:#dbeafe; color:#1d4ed8;">일반</span>
+        <div class="notice-title">2026년 상반기 워크샵 일정 안내</div>
+        <div class="notice-content">6월 20~21일 양평 리조트에서 상반기 워크샵이 진행됩니다. 참석 여부를 5/15까지 회신 바랍니다.</div>
+        <div class="notice-meta">2026-04-25 · 인사총무팀</div>
+      </div>
+      <div class="notice-item notice-normal">
+        <span class="notice-category" style="background:#dcfce7; color:#16a34a;">안전</span>
+        <div class="notice-title">실험실 안전교육 필수 이수 안내</div>
+        <div class="notice-content">연 1회 필수 안전교육 미이수자는 5월 말까지 반드시 이수해 주시기 바랍니다.</div>
+        <div class="notice-meta">2026-04-22 · 안전관리팀</div>
+      </div>
+      <div class="notice-item notice-normal">
+        <span class="notice-category" style="background:#dbeafe; color:#1d4ed8;">일반</span>
+        <div class="notice-title">주차장 이용 안내 변경</div>
+        <div class="notice-content">5월부터 지하 2층 주차장 리모델링으로 인해 외부 주차장을 이용해 주시기 바랍니다.</div>
+        <div class="notice-meta">2026-04-20 · 총무팀</div>
+      </div>
+      <div class="notice-item notice-normal">
+        <span class="notice-category" style="background:#fef3c7; color:#b45309;">인사</span>
+        <div class="notice-title">2026년 하계 휴가 사용 안내</div>
+        <div class="notice-content">하계 휴가는 6/1~8/31 기간 내 사용 가능하며, 부서장 승인 후 사용 바랍니다.</div>
+        <div class="notice-meta">2026-04-18 · 인사총무팀</div>
+      </div>
+      <div class="notice-item notice-normal">
+        <span class="notice-category" style="background:#dbeafe; color:#1d4ed8;">일반</span>
+        <div class="notice-title">사내 동호회 신규 모집</div>
+        <div class="notice-content">배드민턴, 독서, 등산 동호회 신규 회원을 모집합니다.</div>
+        <div class="notice-meta">2026-04-15 · 피플팀</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+</body>
+</html>
