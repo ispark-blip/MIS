@@ -18,7 +18,7 @@ export default function TestCountTable({ data, hideChart }) {
       {data.map((d, i) => {
         const color = getDeptColor(d.department, i);
         return (
-          <div key={`${d.lab}-${d.department}`} className="border rounded-lg p-2 sm:p-3 min-h-0 overflow-hidden flex flex-col justify-center" style={{ borderColor: color + '40', background: color + '08' }}>
+          <div key={`${d.lab}-${d.department}`} className="border rounded-lg p-2 sm:p-3 min-h-0 overflow-hidden flex flex-col justify-start" style={{ borderColor: color + '40', background: color + '08' }}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
                 <h4 className="font-bold text-lg sm:text-xl lg:text-2xl truncate" style={{ color }}>{d.department}</h4>
