@@ -29,35 +29,35 @@ export default function SubjectCards({ data, hideChart }) {
             onClick={hideChart ? undefined : () => setExpanded(isOpen ? null : lab.lab)}
           >
             <div className="min-w-0 flex-1">
-              <h4 className="font-bold text-lg sm:text-xl lg:text-2xl" style={{ color }}>{lab.lab}연구소</h4>
+              <h4 className="font-bold text-base sm:text-lg lg:text-xl leading-tight" style={{ color }}>{lab.lab}연구소</h4>
 
-              <div className="mt-2 flex items-end gap-3 sm:gap-4">
+              <div className="mt-1.5 flex items-end gap-2 sm:gap-3">
                 {/* Hero: 오늘 */}
                 <div>
-                  <div className="text-2xl sm:text-3xl lg:text-4xl font-bold leading-none" style={{ color }}>
-                    {fmt(lab.today)}<span className="text-sm font-medium text-gray-500 ml-0.5">명</span>
+                  <div className="text-xl sm:text-2xl lg:text-3xl font-bold leading-none" style={{ color }}>
+                    {fmt(lab.today)}<span className="text-xs font-medium text-gray-500 ml-0.5">명</span>
                   </div>
-                  <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">오늘</div>
+                  <div className="text-[10px] sm:text-[11px] text-gray-500 mt-1 font-medium leading-none">오늘</div>
                 </div>
 
-                <div className="w-px self-stretch bg-gray-200 mt-1"></div>
+                <div className="w-px self-stretch bg-gray-200"></div>
 
                 {/* 당월 누적 */}
                 <div>
-                  <div className="text-lg sm:text-xl lg:text-2xl font-bold leading-none text-gray-800">
-                    {fmt(lab.monthlyTotal)}<span className="text-xs font-medium text-gray-500 ml-0.5">명</span>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold leading-none text-gray-800">
+                    {fmt(lab.monthlyTotal)}<span className="text-[11px] font-medium text-gray-500 ml-0.5">명</span>
                   </div>
-                  <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">당월 누적</div>
+                  <div className="text-[10px] sm:text-[11px] text-gray-500 mt-1 font-medium leading-none">당월 누적</div>
                 </div>
 
-                <div className="w-px self-stretch bg-gray-200 mt-1"></div>
+                <div className="w-px self-stretch bg-gray-200"></div>
 
                 {/* 연 누적 */}
                 <div>
-                  <div className="text-lg sm:text-xl lg:text-2xl font-bold leading-none text-gray-800">
-                    {fmt(lab.annualTotal)}<span className="text-xs font-medium text-gray-500 ml-0.5">명</span>
+                  <div className="text-base sm:text-lg lg:text-xl font-bold leading-none text-gray-800">
+                    {fmt(lab.annualTotal)}<span className="text-[11px] font-medium text-gray-500 ml-0.5">명</span>
                   </div>
-                  <div className="text-[11px] sm:text-xs text-gray-500 mt-1.5 font-medium">{yy}년 누적</div>
+                  <div className="text-[10px] sm:text-[11px] text-gray-500 mt-1 font-medium leading-none">{yy}년 누적</div>
                 </div>
               </div>
             </div>
