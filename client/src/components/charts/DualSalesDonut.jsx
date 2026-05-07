@@ -112,11 +112,15 @@ function KdriPanel({ depts, totalTarget, totalActual, achievementRate }) {
   );
 }
 
-function AltruPanel({ depts, totalActual }) {
-  const positiveDepts = depts.filter((d) => d.actual > 0);
-  const slices = positiveDepts.length > 0
-    ? positiveDepts.map((d, i) => ({ name: d.name, value: d.actual, fill: getDeptColor(d.name, i) }))
-    : [{ name: '얼트루 매출', value: totalActual > 0 ? totalActual : 1, fill: totalActual > 0 ? '#6366f1' : '#e2e8f0' }];
+function AltruPanel({ totalTarget, totalActual, achievementRate }) {
+  const slices = [
+    { name: '달성', value: totalActual, fill: getAchievementColor(achievementRate) },
+    { name: '잔여', value: Math.max(totalTarget - totalActual, 0), fill: '#e2e8f0' },
+  ];
+  if (totalTarget === 0 && totalActual === 0) {
+    slices[0] = { name: '데이터 없음', value: 1, fill: '#e2e8f0' };
+    slices[1] = { name: '', value: 0, fill: '#e2e8f0' };
+  }
 
   return (
     <div className="flex-1 min-w-0 flex flex-col gap-2 min-h-0">
@@ -125,7 +129,11 @@ function AltruPanel({ depts, totalActual }) {
       </div>
       <div className="flex items-center justify-center gap-3 sm:gap-4 flex-wrap shrink-0">
         <div className="flex items-baseline gap-1.5">
-          <span className="text-xs sm:text-sm text-gray-500">매출</span>
+          <span className="text-xs sm:text-sm text-gray-500">목표</span>
+          <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalTarget)}</span>
+        </div>
+        <div className="flex items-baseline gap-1.5">
+          <span className="text-xs sm:text-sm text-gray-500">달성</span>
           <span className="text-xl sm:text-2xl lg:text-3xl font-bold">{formatCurrency(totalActual)}</span>
         </div>
       </div>
@@ -134,14 +142,11 @@ function AltruPanel({ depts, totalActual }) {
           <PieChart>
             <Pie data={slices} dataKey="value" cx="50%" cy="50%" innerRadius="55%" outerRadius="92%" startAngle={90} endAngle={-270} stroke="none">
               {slices.map((s, i) => <Cell key={i} fill={s.fill} />)}
-              <LabelList content={<AmountCenterLabel amount={totalActual} />} position="center" />
+              <LabelList content={<PctCenterLabel achievementRate={achievementRate} />} position="center" />
             </Pie>
           </PieChart>
         </ResponsiveContainer>
       </div>
-      {positiveDepts.length > 0
-        ? <DeptLegend depts={positiveDepts} totalActual={totalActual} />
-        : <div className="text-center text-xs text-gray-400 shrink-0">부서별 데이터 입력 시 표시됩니다</div>}
     </div>
   );
 }
@@ -158,13 +163,15 @@ export default function DualSalesDonut({ data }) {
   const kdriTotalActual = kdriDepts.reduce((s, d) => s + (d.actual || 0), 0);
   const kdriRate = kdriTotalTarget > 0 ? Math.round((kdriTotalActual / kdriTotalTarget) * 1000) / 10 : 0;
 
+  const altruTotalTarget = altruDepts.reduce((s, d) => s + (d.target || 0), 0);
   const altruTotalActual = altruDepts.reduce((s, d) => s + (d.actual || 0), 0);
+  const altruRate = altruTotalTarget > 0 ? Math.round((altruTotalActual / altruTotalTarget) * 1000) / 10 : 0;
 
   return (
     <div className="h-full flex gap-3 sm:gap-4 min-h-0">
       <KdriPanel depts={kdriDepts} totalTarget={kdriTotalTarget} totalActual={kdriTotalActual} achievementRate={kdriRate} />
       <div className="w-px self-stretch bg-gray-300 shrink-0"></div>
-      <AltruPanel depts={altruDepts} totalActual={altruTotalActual} />
+      <AltruPanel totalTarget={altruTotalTarget} totalActual={altruTotalActual} achievementRate={altruRate} />
     </div>
   );
 }
