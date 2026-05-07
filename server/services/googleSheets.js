@@ -106,16 +106,21 @@ class GoogleSheetsService {
   // 시트 컬럼: 연도 | 월 | 부서명 | 연구소 | 월목표 | 월실적
   transformSalesData() {
     return (this.cache.sales || [])
-      .filter(row => row && row[0] && row[1] && row[2] && row[3])
-      .map(row => ({
-        year: toNum(row[0]),
-        month: toNum(row[1]),
-        name: String(row[2]).trim(),
-        lab: String(row[3]).trim(),
-        target_monthly: toNum(row[4]),
-        actual_monthly: toNum(row[5]),
-      }))
-      .filter(r => r.year > 0 && r.month >= 1 && r.month <= 12);
+      .filter(row => row && row[0] && row[1] && row[3])
+      .map(row => {
+        const lab = String(row[3] || '').trim();
+        const rawName = String(row[2] || '').trim();
+        return {
+          year: toNum(row[0]),
+          month: toNum(row[1]),
+          // 부서명이 비어 있으면 lab명을 부서명으로 사용 (별도법인 등 부서 미정 케이스)
+          name: rawName || lab,
+          lab,
+          target_monthly: toNum(row[4]),
+          actual_monthly: toNum(row[5]),
+        };
+      })
+      .filter(r => r.year > 0 && r.month >= 1 && r.month <= 12 && r.lab);
   }
 
   getCachedSalesOverview(lab, year) {
