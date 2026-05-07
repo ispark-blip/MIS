@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useSSE } from '../hooks/useSSE';
 import { useAuth } from '../hooks/useAuth';
 import useDashboardStore from '../stores/dashboardStore';
@@ -10,6 +10,11 @@ import TestCountTable from '../components/charts/TestCountTable';
 import SubjectCards from '../components/charts/SubjectCards';
 import ChartErrorBoundary from '../components/charts/ChartErrorBoundary';
 import { TrendingUp, BarChart3, ClipboardList, Users } from 'lucide-react';
+
+function parseJsonArr(v) {
+  if (!v) return [];
+  try { const a = JSON.parse(v); return Array.isArray(a) ? a : []; } catch { return []; }
+}
 
 export default function DashboardPage() {
   useSSE();
@@ -23,6 +28,18 @@ export default function DashboardPage() {
     testCountData, setTestCountData,
     subjectData, setSubjectData,
   } = useDashboardStore();
+
+  const [hiddenQ1Entities, setHiddenQ1Entities] = useState(new Set());
+
+  // 표시 설정 로드 (Q1 패널 가시성)
+  useEffect(() => {
+    const load = () => api.get('/settings').then(r => {
+      setHiddenQ1Entities(new Set(parseJsonArr(r.data.data?.hidden_q1_entities)));
+    }).catch(() => {});
+    load();
+    const interval = setInterval(load, 60000);
+    return () => clearInterval(interval);
+  }, []);
 
   // 기준일자: 데이터에 포함된 todayDate 중 최신값
   const pickRefDate = (arr) => {
@@ -69,7 +86,7 @@ export default function DashboardPage() {
             <span className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-700">전사 목표 vs 누적매출</span>
           </div>
           <div className="flex-1 p-2 sm:p-3 min-h-0">
-            <ChartErrorBoundary resetKey={salesData}><DualSalesDonut data={salesData} /></ChartErrorBoundary>
+            <ChartErrorBoundary resetKey={salesData}><DualSalesDonut data={salesData} hiddenEntities={hiddenQ1Entities} /></ChartErrorBoundary>
           </div>
         </section>
 

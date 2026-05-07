@@ -151,9 +151,17 @@ function AltruPanel({ totalTarget, totalActual, achievementRate }) {
   );
 }
 
-export default function DualSalesDonut({ data }) {
+export default function DualSalesDonut({ data, hiddenEntities }) {
   if (!data || !Array.isArray(data.departments)) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">데이터 연동 대기 중</div>;
+  }
+
+  const hide = hiddenEntities instanceof Set ? hiddenEntities : new Set(hiddenEntities || []);
+  const showKdri = !hide.has('한피연');
+  const showAltru = !hide.has('얼트루');
+
+  if (!showKdri && !showAltru) {
+    return <div className="flex items-center justify-center h-full text-gray-400 text-sm">표시 설정에서 한피연 또는 얼트루를 체크해주세요.</div>;
   }
 
   const kdriDepts = data.departments.filter((d) => d.lab !== ALTRU_LAB);
@@ -169,9 +177,13 @@ export default function DualSalesDonut({ data }) {
 
   return (
     <div className="h-full flex gap-3 sm:gap-4 min-h-0">
-      <KdriPanel depts={kdriDepts} totalTarget={kdriTotalTarget} totalActual={kdriTotalActual} achievementRate={kdriRate} />
-      <div className="w-px self-stretch bg-gray-300 shrink-0"></div>
-      <AltruPanel totalTarget={altruTotalTarget} totalActual={altruTotalActual} achievementRate={altruRate} />
+      {showKdri && (
+        <KdriPanel depts={kdriDepts} totalTarget={kdriTotalTarget} totalActual={kdriTotalActual} achievementRate={kdriRate} />
+      )}
+      {showKdri && showAltru && <div className="w-px self-stretch bg-gray-300 shrink-0"></div>}
+      {showAltru && (
+        <AltruPanel totalTarget={altruTotalTarget} totalActual={altruTotalActual} achievementRate={altruRate} />
+      )}
     </div>
   );
 }

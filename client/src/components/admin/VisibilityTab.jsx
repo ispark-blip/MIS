@@ -13,16 +13,17 @@ function parseJsonArr(v) {
 }
 
 export default function VisibilityTab({ settings, onSaved }) {
-  const [options, setOptions] = useState({ salesDepartments: [], labs: [] });
+  const [options, setOptions] = useState({ salesDepartments: [], labs: [], q1Entities: [] });
   const [hiddenSalesDepts, setHiddenSalesDepts] = useState(new Set());
   const [hiddenTestCountDepts, setHiddenTestCountDepts] = useState(new Set());
   const [hiddenLabs, setHiddenLabs] = useState(new Set());
+  const [hiddenQ1Entities, setHiddenQ1Entities] = useState(new Set());
   const [saving, setSaving] = useState(false);
   const [msg, setMsg] = useState(null);
 
   useEffect(() => {
     api.get('/settings/filter-options')
-      .then(r => setOptions(r.data.data || { salesDepartments: [], labs: [] }))
+      .then(r => setOptions(r.data.data || { salesDepartments: [], labs: [], q1Entities: [] }))
       .catch(() => {});
   }, []);
 
@@ -31,6 +32,7 @@ export default function VisibilityTab({ settings, onSaved }) {
       setHiddenSalesDepts(new Set(parseJsonArr(settings.hidden_sales_departments)));
       setHiddenTestCountDepts(new Set(parseJsonArr(settings.hidden_test_count_departments)));
       setHiddenLabs(new Set(parseJsonArr(settings.hidden_summary_labs)));
+      setHiddenQ1Entities(new Set(parseJsonArr(settings.hidden_q1_entities)));
     }
   }, [settings]);
 
@@ -48,6 +50,7 @@ export default function VisibilityTab({ settings, onSaved }) {
         hidden_sales_departments: Array.from(hiddenSalesDepts),
         hidden_test_count_departments: Array.from(hiddenTestCountDepts),
         hidden_summary_labs: Array.from(hiddenLabs),
+        hidden_q1_entities: Array.from(hiddenQ1Entities),
       });
       onSaved(r.data.data);
       setMsg({ type: 'ok', text: '저장되었습니다.' });
@@ -100,6 +103,12 @@ export default function VisibilityTab({ settings, onSaved }) {
           {msg.text}
         </div>
       )}
+
+      <section>
+        <h3 className="font-semibold text-sm text-slate-700 mb-2">Q1 전사 매출 · 패널 표시 (한피연/얼트루)</h3>
+        <p className="text-xs text-gray-500 mb-3">체크된 패널만 Q1 도넛 영역에 표시됩니다. 둘 다 체크 시 좌우 분할, 하나만 체크 시 전체 폭으로 표시됩니다.</p>
+        {renderCheckboxList(options.q1Entities, hiddenQ1Entities, setHiddenQ1Entities, '항목 없음')}
+      </section>
 
       <section>
         <h3 className="font-semibold text-sm text-slate-700 mb-2">Q1/Q2 매출 · 부서별 표시</h3>

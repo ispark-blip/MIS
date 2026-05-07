@@ -37,10 +37,12 @@ const ALLOWED_KEYS = new Set([
   'default_lab', 'default_year', 'default_quarter',
   // 표시 숨김 (JSON 배열)
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
+  'hidden_q1_entities',
 ]);
 // JSON 배열로 저장되는 키 (최대 길이 완화)
 const JSON_ARRAY_KEYS = new Set([
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
+  'hidden_q1_entities',
 ]);
 
 // GET /api/settings - 공개 (브랜딩 표시용)
@@ -93,7 +95,8 @@ router.get('/filter-options', requireAuth, requireRole('admin'), (req, res) => {
     }
     salesDepartments = Array.from(set).sort();
   }
-  res.json({ success: true, data: { salesDepartments, labs: LABS } });
+  const q1Entities = ['한피연', '얼트루'];
+  res.json({ success: true, data: { salesDepartments, labs: LABS, q1Entities } });
 });
 
 // 로고 업로드 (multer - memoryStorage 후 직접 저장)
