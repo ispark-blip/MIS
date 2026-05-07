@@ -85,7 +85,7 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
 
 // GET /api/settings/filter-options - 관리자만. 가시성 설정 UI용 부서/연구소 목록
 router.get('/filter-options', requireAuth, requireRole('admin'), (req, res) => {
-  const { labs: LABS } = require('../config/departments');
+  const { labs: LABS } = require('../config/getDepartments')();
   const sheetsService = req.app.get('sheetsService');
   let salesDepartments = [];
   if (sheetsService) {

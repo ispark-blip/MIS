@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../config/database');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { logAccess } = require('../middleware/logger');
-const { labs } = require('../config/departments');
+const getDepartments = require('../config/getDepartments');
 
 const router = express.Router();
 
@@ -78,7 +78,7 @@ router.get('/summary', (req, res) => {
       if (Array.isArray(arr)) hiddenLabs = new Set(arr);
     }
   } catch {}
-  const labsList = labs.filter(l => !hiddenLabs.has(l));
+  const labsList = getDepartments().labs.filter(l => !hiddenLabs.has(l));
   const summary = labsList.map(lab => {
     const todayCount = db.prepare(
       'SELECT COALESCE(SUM(subject_count), 0) as total FROM daily_subject_counts WHERE date = ? AND lab = ?'
@@ -165,7 +165,7 @@ router.post('/', requireAuth, requirePermission('can_input_subjects'), async (re
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '인원수는 0~99999 사이 정수여야 합니다.' } });
   }
 
-  if (!labs.includes(lab)) {
+  if (!getDepartments().labs.includes(lab)) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '유효하지 않은 연구소입니다.' } });
   }
 

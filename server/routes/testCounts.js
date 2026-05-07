@@ -2,7 +2,7 @@ const express = require('express');
 const db = require('../config/database');
 const { requireAuth, requirePermission } = require('../middleware/auth');
 const { logAccess } = require('../middleware/logger');
-const { labs } = require('../config/departments');
+const getDepartments = require('../config/getDepartments');
 
 const router = express.Router();
 
@@ -108,7 +108,7 @@ router.post('/', requireAuth, requirePermission('can_input_test_counts'), async 
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '일자 형식이 올바르지 않습니다.' } });
   }
 
-  if (!labs.includes(lab)) {
+  if (!getDepartments().labs.includes(lab)) {
     return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '유효하지 않은 연구소입니다.' } });
   }
 

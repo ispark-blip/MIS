@@ -1,6 +1,6 @@
 const fs = require('fs');
 const sheetsConfig = require('../config/sheets');
-const { labs: LABS_CONFIG } = require('../config/departments');
+const getDepartments = require('../config/getDepartments');
 const db = require('../config/database');
 
 // app_settings에서 숨김 대상 Set 반환 (JSON 배열 디코드)
@@ -430,6 +430,7 @@ class GoogleSheetsService {
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
+    const LABS_CONFIG = getDepartments().labs;
     if (targetMonth) {
       for (const lab of LABS_CONFIG) {
         const intCount = internalRows.filter(r => r.lab === lab).length;
