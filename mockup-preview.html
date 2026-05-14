@@ -1,0 +1,264 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>레이아웃 변경 예상 이미지</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; font-family: 'Segoe UI', 'Malgun Gothic', sans-serif; }
+  body { background: #f1f5f9; padding: 20px; }
+  h1 { font-size: 18px; margin-bottom: 10px; color: #334155; }
+  .label { font-size: 13px; color: #64748b; margin: 12px 0 6px; }
+
+  /* 전체 컨테이너 — 실제 사이니지 비율 (16:9) */
+  .dashboard {
+    width: 100%;
+    max-width: 1600px;
+    height: 900px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    background: #334155;
+    gap: 5px;
+    padding: 5px;
+  }
+
+  /* ▼ 핵심 변경: 3fr / 2fr 비율 (Q1,Q2 = 3/5, Q3,Q4 = 2/5) */
+  .dashboard.new { grid-template-rows: 3fr 2fr; }
+  .dashboard.old { grid-template-rows: 1fr 1fr; }
+
+  .section {
+    background: #f9fafb;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .section-header {
+    background: #f8fafc;
+    padding: 10px 14px;
+    border-bottom: 1px solid #e5e7eb;
+    font-weight: bold;
+    color: #334155;
+    font-size: 15px;
+  }
+  .section-body { flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+
+  /* Q1: 도넛 레이아웃 */
+  .q1-top {
+    display: flex; align-items: center; gap: 20px;
+    flex-shrink: 0;
+  }
+  .q1-top .metric { display: flex; align-items: baseline; gap: 6px; }
+  .q1-top .metric .lbl { font-size: 13px; color: #64748b; }
+  .q1-top .metric .val { font-size: 22px; font-weight: bold; color: #1e293b; }
+
+  .q1-body {
+    flex: 1; display: flex; align-items: center; min-height: 0;
+  }
+
+  /* 원형 SVG 래퍼 */
+  .donut-wrap { position: relative; display: flex; align-items: center; justify-content: center; }
+  .donut-wrap .center-text {
+    position: absolute; text-align: center;
+    display: flex; flex-direction: column; align-items: center;
+  }
+  .donut-wrap .center-text .pct {
+    font-size: 64px; font-weight: bold; line-height: 1;
+  }
+  .donut-wrap .center-text .lbl {
+    font-size: 13px; color: #64748b; margin-top: 4px;
+  }
+
+  /* 신규(크게 - 도넛 사이즈 ↑, 가운데 % 위치) */
+  .donut-new { width: 55%; height: 100%; }
+  .donut-new svg { width: 100%; height: 100%; }
+  /* 기존(작게 - 오른쪽 상단 %) */
+  .donut-old { width: 50%; height: 100%; }
+  .donut-old svg { width: 100%; height: 100%; }
+
+  .bars { flex: 1; display: flex; flex-direction: column; gap: 8px; padding-left: 10px; justify-content: center; }
+  .bar-row { display: flex; align-items: center; gap: 8px; }
+  .bar-row .name { width: 80px; font-size: 13px; color: #475569; text-align: right; }
+  .bar-row .bar { flex: 1; height: 18px; border-radius: 0 4px 4px 0; }
+  .bar-row .amt { font-size: 13px; color: #1e293b; font-weight: bold; white-space: nowrap; }
+
+  /* Q2 막대 */
+  .q2-bars { flex: 1; display: flex; align-items: flex-end; gap: 16px; padding: 10px; }
+  .q2-col { flex: 1; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+  .q2-col .bar-group { display: flex; gap: 3px; align-items: flex-end; height: 80%; }
+  .q2-col .bar-target { width: 22px; background: #cbd5e1; }
+  .q2-col .bar-actual { width: 22px; }
+  .q2-col .label { font-size: 12px; color: #475569; }
+
+  /* Q3/Q4 카드 */
+  .cards { flex: 1; display: grid; gap: 8px; min-height: 0; }
+  .q3-grid { grid-template-columns: 1fr 1fr; }
+  .q4-grid { grid-template-rows: 1fr 1fr; }
+  .card {
+    border: 1px solid #cbd5e1; border-radius: 8px; padding: 8px 12px;
+    display: flex; align-items: center; justify-content: space-between;
+    overflow: hidden;
+  }
+  .card .info .title { font-size: 15px; font-weight: bold; }
+  .card .info .stats { font-size: 12px; color: #64748b; margin-top: 2px; }
+  .card .info .big { font-size: 20px; font-weight: bold; margin-right: 4px; color: #1e293b; }
+
+  .tag-new { display: inline-block; padding: 2px 8px; background: #22c55e; color: white; font-size: 12px; border-radius: 10px; margin-left: 6px; }
+  .tag-old { display: inline-block; padding: 2px 8px; background: #94a3b8; color: white; font-size: 12px; border-radius: 10px; margin-left: 6px; }
+</style>
+</head>
+<body>
+
+<h1>🔽 변경 후 (신규 레이아웃)<span class="tag-new">NEW</span></h1>
+<p class="label">• 상하 비율: 3 : 2 (Q1/Q2 더 크게) • Q1 도넛 확대 • 달성률을 도넛 중앙에</p>
+
+<div class="dashboard new">
+  <!-- Q1 -->
+  <section class="section">
+    <div class="section-header">전사 목표 vs 누적매출</div>
+    <div class="section-body">
+      <div class="q1-top">
+        <div class="metric"><span class="lbl">목표</span><span class="val">94억</span></div>
+        <div class="metric"><span class="lbl">달성</span><span class="val">45억</span></div>
+      </div>
+      <div class="q1-body">
+        <div class="donut-wrap donut-new">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#e2e8f0" stroke-width="32"/>
+            <circle cx="100" cy="100" r="80" fill="none" stroke="#ef4444" stroke-width="32"
+                    stroke-dasharray="240 502" stroke-dashoffset="0" transform="rotate(-90 100 100)"/>
+          </svg>
+          <div class="center-text">
+            <div class="pct" style="color:#ef4444;">47.8%</div>
+            <div class="lbl">달성률</div>
+          </div>
+        </div>
+        <div class="bars">
+          <div class="bar-row"><span class="name">가산 임상팀</span><div class="bar" style="width:75%; background:#3b82f6;"></div><span class="amt">15.2억</span></div>
+          <div class="bar-row"><span class="name">문정 임상팀</span><div class="bar" style="width:55%; background:#14b8a6;"></div><span class="amt">11.0억</span></div>
+          <div class="bar-row"><span class="name">비임상</span><div class="bar" style="width:45%; background:#8b5cf6;"></div><span class="amt">9.0억</span></div>
+          <div class="bar-row"><span class="name">원료개발팀</span><div class="bar" style="width:30%; background:#f59e0b;"></div><span class="amt">6.0억</span></div>
+          <div class="bar-row"><span class="name">자외선실</span><div class="bar" style="width:18%; background:#ef4444;"></div><span class="amt">3.8억</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q2 -->
+  <section class="section">
+    <div class="section-header">부서별 분기 매출</div>
+    <div class="section-body">
+      <div style="display:flex; gap:6px;">
+        <span style="padding:4px 10px; background:#1e293b; color:white; border-radius:4px; font-size:12px;">Q1</span>
+        <span style="padding:4px 10px; background:#f1f5f9; color:#64748b; border-radius:4px; font-size:12px;">Q2</span>
+        <span style="padding:4px 10px; background:#f1f5f9; color:#64748b; border-radius:4px; font-size:12px;">Q3</span>
+        <span style="padding:4px 10px; background:#f1f5f9; color:#64748b; border-radius:4px; font-size:12px;">Q4</span>
+      </div>
+      <div class="q2-bars">
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:60%"></div><div class="bar-actual" style="height:45%; background:#3b82f6"></div></div><div class="label">가산 임상팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:55%"></div><div class="bar-actual" style="height:35%; background:#14b8a6"></div></div><div class="label">문정 임상팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:50%"></div><div class="bar-actual" style="height:30%; background:#8b5cf6"></div></div><div class="label">비임상</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:40%"></div><div class="bar-actual" style="height:20%; background:#f59e0b"></div></div><div class="label">원료개발팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:35%"></div><div class="bar-actual" style="height:12%; background:#ef4444"></div></div><div class="label">자외선실</div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q3 -->
+  <section class="section">
+    <div class="section-header">일일 시험건수</div>
+    <div class="section-body">
+      <div class="cards q3-grid">
+        <div class="card"><div class="info"><div class="title" style="color:#3b82f6">가산 임상팀</div><div class="stats"><span class="big">12</span>건 · 월 156 · 연 1,240</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#14b8a6">문정 임상팀</div><div class="stats"><span class="big">8</span>건 · 월 98 · 연 890</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#8b5cf6">비임상</div><div class="stats"><span class="big">4</span>건 · 월 52 · 연 420</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#ef4444">자외선실</div><div class="stats"><span class="big">2</span>건 · 월 18 · 연 145</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q4 -->
+  <section class="section">
+    <div class="section-header">시험대상자 인원수</div>
+    <div class="section-body">
+      <div class="cards q4-grid">
+        <div class="card"><div class="info"><div class="title" style="color:#6366f1">가산연구소</div><div class="stats"><span class="big">42</span>명 · 월 520명 · 연 3,840명</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#14b8a6">문정연구소</div><div class="stats"><span class="big">35</span>명 · 월 420명 · 연 3,120명</div></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<h1 style="margin-top:40px;">🔽 변경 전 (기존 레이아웃)<span class="tag-old">OLD</span></h1>
+<p class="label">• 상하 비율 1:1 • Q1 도넛 작고, % 오른쪽 상단에 별도 표시</p>
+
+<div class="dashboard old">
+  <!-- Q1 (기존) -->
+  <section class="section">
+    <div class="section-header">전사 목표 vs 누적매출</div>
+    <div class="section-body">
+      <div class="q1-top">
+        <div class="metric"><span class="lbl">목표</span><span class="val">94억</span></div>
+        <div class="metric"><span class="lbl">달성</span><span class="val">45억</span></div>
+        <div style="margin-left:auto; font-size:44px; font-weight:bold; color:#ef4444;">47.8%</div>
+      </div>
+      <div class="q1-body">
+        <div class="donut-wrap donut-old">
+          <svg viewBox="0 0 200 200">
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#e2e8f0" stroke-width="28"/>
+            <circle cx="100" cy="100" r="70" fill="none" stroke="#ef4444" stroke-width="28"
+                    stroke-dasharray="210 440" transform="rotate(-90 100 100)"/>
+          </svg>
+        </div>
+        <div class="bars">
+          <div class="bar-row"><span class="name">가산 임상팀</span><div class="bar" style="width:75%; background:#3b82f6;"></div><span class="amt">15.2억</span></div>
+          <div class="bar-row"><span class="name">문정 임상팀</span><div class="bar" style="width:55%; background:#14b8a6;"></div><span class="amt">11.0억</span></div>
+          <div class="bar-row"><span class="name">비임상</span><div class="bar" style="width:45%; background:#8b5cf6;"></div><span class="amt">9.0억</span></div>
+          <div class="bar-row"><span class="name">원료개발팀</span><div class="bar" style="width:30%; background:#f59e0b;"></div><span class="amt">6.0억</span></div>
+          <div class="bar-row"><span class="name">자외선실</span><div class="bar" style="width:18%; background:#ef4444;"></div><span class="amt">3.8억</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- Q2 (기존) -->
+  <section class="section">
+    <div class="section-header">부서별 분기 매출</div>
+    <div class="section-body">
+      <div style="display:flex; gap:6px;">
+        <span style="padding:4px 10px; background:#1e293b; color:white; border-radius:4px; font-size:12px;">Q1</span>
+        <span style="padding:4px 10px; background:#f1f5f9; color:#64748b; border-radius:4px; font-size:12px;">Q2</span>
+      </div>
+      <div class="q2-bars">
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:60%"></div><div class="bar-actual" style="height:45%; background:#3b82f6"></div></div><div class="label">가산 임상팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:55%"></div><div class="bar-actual" style="height:35%; background:#14b8a6"></div></div><div class="label">문정 임상팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:50%"></div><div class="bar-actual" style="height:30%; background:#8b5cf6"></div></div><div class="label">비임상</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:40%"></div><div class="bar-actual" style="height:20%; background:#f59e0b"></div></div><div class="label">원료개발팀</div></div>
+        <div class="q2-col"><div class="bar-group"><div class="bar-target" style="height:35%"></div><div class="bar-actual" style="height:12%; background:#ef4444"></div></div><div class="label">자외선실</div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">일일 시험건수</div>
+    <div class="section-body">
+      <div class="cards q3-grid">
+        <div class="card"><div class="info"><div class="title" style="color:#3b82f6">가산 임상팀</div><div class="stats"><span class="big">12</span>건 · 월 156 · 연 1,240</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#14b8a6">문정 임상팀</div><div class="stats"><span class="big">8</span>건 · 월 98 · 연 890</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#8b5cf6">비임상</div><div class="stats"><span class="big">4</span>건 · 월 52 · 연 420</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#ef4444">자외선실</div><div class="stats"><span class="big">2</span>건 · 월 18 · 연 145</div></div></div>
+      </div>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="section-header">시험대상자 인원수</div>
+    <div class="section-body">
+      <div class="cards q4-grid">
+        <div class="card"><div class="info"><div class="title" style="color:#6366f1">가산연구소</div><div class="stats"><span class="big">42</span>명 · 월 520명 · 연 3,840명</div></div></div>
+        <div class="card"><div class="info"><div class="title" style="color:#14b8a6">문정연구소</div><div class="stats"><span class="big">35</span>명 · 월 420명 · 연 3,120명</div></div></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+</body>
+</html>
