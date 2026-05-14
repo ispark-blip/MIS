@@ -158,6 +158,14 @@ class GoogleSheetsService {
         ratio: totalActual > 0 ? Math.round((d.actual / totalActual) * 1000) / 10 : 0,
         achievementRate: d.target > 0 ? Math.round((d.actual / d.target) * 1000) / 10 : 0,
       })),
+      // 표시 설정과 무관한 전체 부서 목록 (한피연/얼트루 합계 재계산용).
+      // 차트 슬라이스/레전드에는 사용하지 않고 totals 산출에만 사용.
+      allDepartments: departments.map(d => ({
+        name: d.name,
+        lab: d.lab,
+        actual: d.actual,
+        target: d.target,
+      })),
     };
   }
 

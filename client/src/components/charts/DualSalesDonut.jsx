@@ -164,15 +164,22 @@ export default function DualSalesDonut({ data, hiddenEntities }) {
     return <div className="flex items-center justify-center h-full text-gray-400 text-sm">표시 설정에서 한피연 또는 얼트루를 체크해주세요.</div>;
   }
 
+  // 표시(슬라이스/레전드)용 — 표시 설정이 적용된 visible 목록
   const kdriDepts = data.departments.filter((d) => d.lab !== ALTRU_LAB);
   const altruDepts = data.departments.filter((d) => d.lab === ALTRU_LAB);
 
-  const kdriTotalTarget = kdriDepts.reduce((s, d) => s + (d.target || 0), 0);
-  const kdriTotalActual = kdriDepts.reduce((s, d) => s + (d.actual || 0), 0);
+  // 합계 산출용 — 숨김 부서까지 포함된 전체 목록 (allDepartments) 우선,
+  // 없으면 기존 departments로 폴백
+  const fullDepts = Array.isArray(data.allDepartments) ? data.allDepartments : data.departments;
+  const kdriFull = fullDepts.filter((d) => d.lab !== ALTRU_LAB);
+  const altruFull = fullDepts.filter((d) => d.lab === ALTRU_LAB);
+
+  const kdriTotalTarget = kdriFull.reduce((s, d) => s + (d.target || 0), 0);
+  const kdriTotalActual = kdriFull.reduce((s, d) => s + (d.actual || 0), 0);
   const kdriRate = kdriTotalTarget > 0 ? Math.round((kdriTotalActual / kdriTotalTarget) * 1000) / 10 : 0;
 
-  const altruTotalTarget = altruDepts.reduce((s, d) => s + (d.target || 0), 0);
-  const altruTotalActual = altruDepts.reduce((s, d) => s + (d.actual || 0), 0);
+  const altruTotalTarget = altruFull.reduce((s, d) => s + (d.target || 0), 0);
+  const altruTotalActual = altruFull.reduce((s, d) => s + (d.actual || 0), 0);
   const altruRate = altruTotalTarget > 0 ? Math.round((altruTotalActual / altruTotalTarget) * 1000) / 10 : 0;
 
   return (
