@@ -632,22 +632,22 @@ class GoogleSheetsService {
       const rows = res.data.values || [];
       const dailyTotals = new Map();
       const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0, dateRegression = 0;
-      let maxDateSeen = '';
+      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0;
 
+      // 시트가 날짜순으로 정렬되어 있지 않은 경우(미래 일정이 미리 입력되는 등)를 대비해
+      // 행을 날짜 오름차순으로 정렬한 뒤 처리. 동일 날짜는 원래 순서 유지(stable sort).
+      const sortedRows = [];
       for (const row of rows) {
         if (!row || row.length < 1) continue;
         const dateRaw = row[0];
         if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
-
         const date = parseSheetDate(dateRaw);
         if (!date) { dateFail++; continue; }
+        sortedRows.push({ date, row });
+      }
+      sortedRows.sort((a, b) => a.date.localeCompare(b.date));
 
-        // 날짜 진행 방향 추적: 이전 날짜가 다시 나오면 재방문/추가방문으로 간주
-        const isDateRegression = (date < maxDateSeen);
-        if (date > maxDateSeen) maxDateSeen = date;
-        if (isDateRegression) dateRegression++;
-
+      for (const { date, row } of sortedRows) {
         // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
         const dCol = String(row[2] || '').trim();
         if (!dCol) { skipped++; continue; }
@@ -665,10 +665,8 @@ class GoogleSheetsService {
         const cCol = String(row[1] || '');
         const isRevisit = cCol.includes('재방문');
 
-        // 인원수는 항상 실제 날짜에 합산 (날짜 역행과 무관)
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-        // 시험건수: 재방문이거나 날짜가 역행하면 제외
-        if (!isRevisit && !isDateRegression) {
+        if (!isRevisit) {
           rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
         }
         parsed++;
@@ -680,7 +678,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
