@@ -43,11 +43,11 @@
 ### 2.1 PM2 (백엔드)
 ```bash
 pm2 status                          # 프로세스 상태
-pm2 logs mis-dashboard --lines 50   # 최근 로그
-pm2 logs mis-dashboard --err        # 에러 로그만
-pm2 restart mis-dashboard           # 재시작
-pm2 reload mis-dashboard            # 무중단 재시작
-pm2 stop mis-dashboard              # 정지
+pm2 logs kdri-mis --lines 50   # 최근 로그
+pm2 logs kdri-mis --err        # 에러 로그만
+pm2 restart kdri-mis           # 재시작
+pm2 reload kdri-mis            # 무중단 재시작
+pm2 stop kdri-mis              # 정지
 pm2 start ecosystem.config.js       # 시작
 pm2 save                            # 부팅 자동시작 등록
 ```
@@ -83,15 +83,15 @@ cd server && npm install && cd ..
 cd client && npm install && npm run build && cd ..
 
 # 4. 서버 재시작
-pm2 restart mis-dashboard
+pm2 restart kdri-mis
 
 # 5. 상태 확인
-pm2 logs mis-dashboard --lines 30
+pm2 logs kdri-mis --lines 30
 ```
 
 ### 3.2 빠른 배포 (서버 코드만 변경)
 ```bash
-cd ~/dashboard && git pull && pm2 restart mis-dashboard
+cd ~/dashboard && git pull && pm2 restart kdri-mis
 ```
 
 ### 3.3 빠른 배포 (클라이언트 코드만 변경)
@@ -143,9 +143,9 @@ crontab -e
 
 ### 4.4 DB 복원
 ```bash
-pm2 stop mis-dashboard
+pm2 stop kdri-mis
 cp ~/backups/mis-20260518.db ~/dashboard/data/mis.db
-pm2 start mis-dashboard
+pm2 start kdri-mis
 ```
 
 ---
@@ -265,7 +265,7 @@ SHEET_TAB_CELEBRATIONS=경조사
 ### 7.4 시트 데이터 캐시 갱신
 시트 데이터는 5분마다 자동 갱신. 즉시 갱신 필요 시:
 ```bash
-pm2 restart mis-dashboard
+pm2 restart kdri-mis
 ```
 
 ### 7.5 데이터 디버그 엔드포인트
@@ -297,7 +297,7 @@ cd ~/dashboard/server
 grep EXTERNAL_GS .env
 # 출력: EXTERNAL_GS_SHEET_ID=1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow
 ```
-값이 없으면 `.env`에 추가 후 `pm2 restart mis-dashboard`.
+값이 없으면 `.env`에 추가 후 `pm2 restart kdri-mis`.
 
 **Step 2: 서비스 계정 권한 확인**
 - 가산 시트를 브라우저로 열기 (시트 ID로 URL 구성)
@@ -306,7 +306,7 @@ grep EXTERNAL_GS .env
 
 **Step 3: PM2 로그에서 동기화 결과 확인**
 ```bash
-pm2 logs mis-dashboard --lines 200 | grep -i "가산"
+pm2 logs kdri-mis --lines 500 --nostream | grep -i "가산"
 ```
 정상 출력 예시:
 ```
@@ -330,7 +330,7 @@ pm2 logs mis-dashboard --lines 200 | grep -i "가산"
 **Step 4: API 응답 직접 확인**
 ```bash
 # 디버그 엔드포인트
-curl "http://localhost:3001/api/test-counts/debug?lab=가산&month=5&year=2026"
+curl "http://localhost:3000/api/test-counts/debug?lab=가산&month=5&year=2026"
 
 # 응답 예시
 {
@@ -355,9 +355,9 @@ curl "http://localhost:3001/api/test-counts/debug?lab=가산&month=5&year=2026"
 **Step 6: 즉시 갱신**
 시트 수정 후 캐시 반영:
 ```bash
-pm2 restart mis-dashboard
+pm2 restart kdri-mis
 sleep 30  # 초기 동기화 대기
-pm2 logs mis-dashboard --lines 50 | grep "가산"
+pm2 logs kdri-mis --lines 500 --nostream | grep "가산"
 ```
 
 ### 7.8 문정 시험건수 진단 절차
@@ -366,8 +366,8 @@ pm2 logs mis-dashboard --lines 50 | grep "가산"
 탭 탐색은 `25년1월~25년12월` 같은 **연도범위 패턴**으로 동작.
 
 ```bash
-pm2 logs mis-dashboard --lines 200 | grep -i "문정"
-curl "http://localhost:3001/api/test-counts/debug?lab=문정&month=5&year=2026"
+pm2 logs kdri-mis --lines 500 --nostream | grep -i "문정"
+curl "http://localhost:3000/api/test-counts/debug?lab=문정&month=5&year=2026"
 ```
 
 ---
@@ -410,10 +410,10 @@ const DEFAULT_UNIT_SEC = 300; // 5분 = 1단위
 
 ### 10.1 애플리케이션 로그
 ```bash
-pm2 logs mis-dashboard --lines 100
-pm2 logs mis-dashboard --err            # 에러만
-~/.pm2/logs/mis-dashboard-out.log       # 로그 파일 직접
-~/.pm2/logs/mis-dashboard-error.log
+pm2 logs kdri-mis --lines 100
+pm2 logs kdri-mis --err            # 에러만
+~/dashboard/logs/access.log       # 로그 파일 직접
+~/dashboard/logs/error.log
 ```
 
 ### 10.2 접근 로그 (DB)
@@ -442,7 +442,7 @@ cd ~/dashboard/client && npm run build
 ```
 
 ### 11.2 시험건수/시험대상자 데이터 없음
-- 시트 캐시 미초기화 가능성 → `pm2 restart mis-dashboard` 후 1~2분 대기
+- 시트 캐시 미초기화 가능성 → `pm2 restart kdri-mis` 후 1~2분 대기
 - 시트 API 권한 확인 → 서비스 계정에 시트 공유 권한 있는지
 - `/api/test-counts/debug` 로 원본 데이터 확인
 - **가산/문정만 안 나옴** → 외부 시트 동기화 문제. **7.7 / 7.8 진단 절차** 참조
@@ -459,8 +459,8 @@ SELECT employee_id, role FROM users WHERE employee_id = 'admin';
 ```
 
 ### 11.5 502 Bad Gateway
-- PM2 프로세스 죽음 → `pm2 status` 확인 → `pm2 restart mis-dashboard`
-- 포트 충돌 → `sudo lsof -i :3001`
+- PM2 프로세스 죽음 → `pm2 status` 확인 → `pm2 restart kdri-mis`
+- 포트 충돌 → `sudo lsof -i :3000`
 
 ### 11.6 git pull "Already up to date" 인데 변경사항 없음
 ```bash
@@ -514,7 +514,7 @@ cd ~/dashboard
 git log --oneline -10              # 직전 안정 커밋 확인
 git checkout <COMMIT_HASH>
 cd client && npm run build && cd ..
-pm2 restart mis-dashboard
+pm2 restart kdri-mis
 ```
 
 ### 14.3 DB 손상 시
@@ -531,8 +531,8 @@ sqlite3 ~/dashboard/data/mis.db "PRAGMA integrity_check;"
 ```bash
 # === 일상 ===
 pm2 status
-pm2 logs mis-dashboard --lines 50
-git pull && cd client && npm run build && cd .. && pm2 restart mis-dashboard
+pm2 logs kdri-mis --lines 50
+git pull && cd client && npm run build && cd .. && pm2 restart kdri-mis
 
 # === DB ===
 sqlite3 ~/dashboard/data/mis.db
@@ -545,7 +545,7 @@ sudo nginx -t
 sudo systemctl status nginx
 df -h
 free -h
-sudo lsof -i :3001
+sudo lsof -i :3000
 ```
 
 ## 부록 B. 연락처 / 자료
