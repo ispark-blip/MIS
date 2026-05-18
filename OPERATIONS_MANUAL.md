@@ -272,6 +272,104 @@ pm2 restart mis-dashboard
 - `GET /api/test-counts/debug?lab=문정&month=5&year=2026` — 시험건수 원본 비교
 - `GET /api/subjects/debug?lab=문정&month=5&year=2026` — 시험대상자 원본 비교
 
+### 7.6 외부 시트 동기화 (가산 / 문정)
+
+**가산 / 문정 임상팀의 시험건수·인원수는 별도 외부 시트에서 자동 동기화** 합니다.
+(내부 `시험대상자현황` 시트와는 분리)
+
+| 항목 | 가산 | 문정 |
+|---|---|---|
+| 시트 ID 환경변수 | `EXTERNAL_GS_SHEET_ID` | `EXTERNAL_MJ_SHEET_ID` |
+| 탭 자동 탐색 키워드 | `시험일정` 포함 | 연도범위 (예: `25년1월~25년12월`) |
+| 사용 열 | B~H | (탭마다 다름) |
+| 인원수 열 | G열 (row[6]) | — |
+| 필수 열 | D열 (row[2]) 비면 스킵 | D열 비면 스킵 |
+| 시험건수 제외 조건 | C열에 "재방문" 포함, 또는 날짜 역행 | B열이 "일정변동" |
+
+> **외부 동기화가 있는 연구소는 내부 시트의 데이터를 자동 제외**합니다 (이중 집계 방지).
+> 따라서 가산/문정 시험건수가 0이면 외부 시트 문제일 가능성이 큽니다.
+
+### 7.7 가산 시험건수 진단 절차
+
+**Step 1: 환경변수 확인**
+```bash
+cd ~/dashboard/server
+grep EXTERNAL_GS .env
+# 출력: EXTERNAL_GS_SHEET_ID=1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow
+```
+값이 없으면 `.env`에 추가 후 `pm2 restart mis-dashboard`.
+
+**Step 2: 서비스 계정 권한 확인**
+- 가산 시트를 브라우저로 열기 (시트 ID로 URL 구성)
+- `공유` 클릭 → 서비스 계정 이메일(`credentials/service-account.json` 내 `client_email`)이 **뷰어 이상** 권한으로 포함되어 있어야 함
+- 권한 없으면 시트 소유자에게 추가 요청
+
+**Step 3: PM2 로그에서 동기화 결과 확인**
+```bash
+pm2 logs mis-dashboard --lines 200 | grep -i "가산"
+```
+정상 출력 예시:
+```
+[Sheets] 가산 탭 목록: 시험일정_2026 | ...
+[Sheets] 가산 "시험일정_2026": 250행 읽음, 180행 파싱, D열빈행=30, 날짜역행=5, 날짜실패=0, 인원수없음=35
+[Sheets] 가산 월별 분포: {"2026-04":22,"2026-05":18}
+[Sheets] 외부 시험대상자 동기화: 문정+가산 198건
+```
+
+| 로그 패턴 | 의미 / 조치 |
+|---|---|
+| `가산 탭 목록 조회 실패` | 시트 ID 오타 또는 권한 없음 → Step 2 |
+| `가산 외부동기화 실패: PERMISSION_DENIED` | 서비스 계정 공유 안 됨 → Step 2 |
+| `시험일정` 탭이 목록에 없음 | 탭명에 "시험일정" 키워드 포함되어야 자동 탐색됨 |
+| `D열빈행=대부분` | D열(부서/구분) 비어있는 데이터 → 시트 입력 확인 |
+| `인원수없음=대부분` | G열(인원수) 비어있음 → 시트 입력 확인 |
+| `날짜실패=대부분` | A열(날짜) 형식 오류 → YYYY-MM-DD 또는 시리얼 숫자 |
+| `월별 분포에 해당 월 없음` | 그 달 데이터 자체가 시트에 없음 |
+| 로그 자체가 안 나옴 | sheetsService 초기화 실패 → 인증 점검 |
+
+**Step 4: API 응답 직접 확인**
+```bash
+# 디버그 엔드포인트
+curl "http://localhost:3001/api/test-counts/debug?lab=가산&month=5&year=2026"
+
+# 응답 예시
+{
+  "lab": "가산",
+  "externalSyncLabs": ["문정", "가산"],
+  "activeSource": "외부동기화만 사용 (내부 제외)",
+  "external_derived": [{ "date": "2026-05-15", "lab": "가산", "test_count": 5, ... }]
+}
+```
+- `externalSyncLabs`에 "가산" 없으면 → 외부 시트 동기화 실패 (로그 확인)
+- `external_derived` 비어있으면 → 해당 월 데이터 없음 또는 파싱 실패
+
+**Step 5: 시트 데이터 직접 점검 (구글시트)**
+가산 시트에서 다음 사항 확인:
+1. **탭명**에 "시험일정" 키워드 포함 (예: `시험일정_2026`, `2026 시험일정` 모두 가능)
+2. **A열**: 날짜 (실제로는 B열부터 읽으니 위치 주의 — 코드에서 `range: B:H`로 읽음 → 즉 시트 기준 B열이 row[0]=날짜)
+3. **B열(코드 row[0])**: 날짜 — `YYYY-MM-DD` 또는 엑셀 시리얼 숫자
+4. **C열(코드 row[1])**: 구분 — "재방문" 포함 시 시험건수 제외
+5. **D열(코드 row[2])**: 부서/구분 — **비어있으면 전체 스킵**
+6. **H열(코드 row[6])**: 인원수 — 양의 정수
+
+**Step 6: 즉시 갱신**
+시트 수정 후 캐시 반영:
+```bash
+pm2 restart mis-dashboard
+sleep 30  # 초기 동기화 대기
+pm2 logs mis-dashboard --lines 50 | grep "가산"
+```
+
+### 7.8 문정 시험건수 진단 절차
+
+문정도 동일한 외부 시트 구조. 위 절차에서 `가산` → `문정`, `EXTERNAL_GS` → `EXTERNAL_MJ`로 치환.
+탭 탐색은 `25년1월~25년12월` 같은 **연도범위 패턴**으로 동작.
+
+```bash
+pm2 logs mis-dashboard --lines 200 | grep -i "문정"
+curl "http://localhost:3001/api/test-counts/debug?lab=문정&month=5&year=2026"
+```
+
 ---
 
 ## 8. 부서·연구소 설정
@@ -347,6 +445,7 @@ cd ~/dashboard/client && npm run build
 - 시트 캐시 미초기화 가능성 → `pm2 restart mis-dashboard` 후 1~2분 대기
 - 시트 API 권한 확인 → 서비스 계정에 시트 공유 권한 있는지
 - `/api/test-counts/debug` 로 원본 데이터 확인
+- **가산/문정만 안 나옴** → 외부 시트 동기화 문제. **7.7 / 7.8 진단 절차** 참조
 
 ### 11.3 한피연 합계가 부서 숨김에 영향받음
 - 클라이언트 빌드가 구버전일 가능성 → `npm run build` 다시
