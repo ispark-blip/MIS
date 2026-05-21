@@ -648,9 +648,9 @@ class GoogleSheetsService {
       sortedRows.sort((a, b) => a.date.localeCompare(b.date));
 
       for (const { date, row } of sortedRows) {
-        // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
-        const dCol = String(row[2] || '').trim();
-        if (!dCol) { skipped++; continue; }
+        // E열(고객사/제품)이 비어있으면 헤더/메모 행으로 간주하여 제외
+        const eCol = String(row[3] || '').trim();
+        if (!eCol) { skipped++; continue; }
 
         const countRaw = row.length >= 7 ? row[6] : undefined;
         if (countRaw === undefined || countRaw === null || countRaw === '') {
@@ -661,9 +661,9 @@ class GoogleSheetsService {
         const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
         if (isNaN(count) || count <= 0) { countMissing++; continue; }
 
-        // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
+        // C열(row[1])에 '재방문' 또는 '추가방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
         const cCol = String(row[1] || '');
-        const isRevisit = cCol.includes('재방문');
+        const isRevisit = cCol.includes('재방문') || cCol.includes('추가방문');
 
         dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
         if (!isRevisit) {
@@ -678,7 +678,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, E열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
