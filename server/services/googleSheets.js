@@ -931,7 +931,7 @@ class GoogleSheetsService {
       if (location && !locationByName.has(name)) locationByName.set(name, location);
 
       const bday = this._parseEmployeeBirthday(row[5]);
-      if (bday && bday.month === curMonth && bday.day >= curDay) {
+      if (bday && bday.month === curMonth) {
         const dday = bday.day - curDay;
         birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
       }
@@ -939,7 +939,7 @@ class GoogleSheetsService {
       const hireDate = this._parseEmployeeDate(row[6]);
       if (hireDate) {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
-        if (hm === curMonth && hy < curYear && hd >= curDay) {
+        if (hm === curMonth && hy < curYear) {
           const years = curYear - hy;
           if (years === 1 || years === 3 || years === 5 || years === 10 || years === 20) {
             const dday = hd - curDay;
@@ -956,12 +956,9 @@ class GoogleSheetsService {
     anniversaries.sort((a, b) => a.day - b.day);
     newHires.sort((a, b) => a.day - b.day);
 
-    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
-    const nextMonthYear = curMonth === 12 ? curYear + 1 : curYear;
-    const nextMonthLastDay = new Date(nextMonthYear, nextMonth, 0).getDate();
-    const weddingEndStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}-${String(nextMonthLastDay).padStart(2, '0')}`;
     const curMonthLastDay = new Date(curYear, curMonth, 0).getDate();
-    const condolenceEndStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curMonthLastDay).padStart(2, '0')}`;
+    const monthStartStr = `${curYear}-${String(curMonth).padStart(2, '0')}-01`;
+    const monthEndStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curMonthLastDay).padStart(2, '0')}`;
 
     const weddings = [];
     const condolences = [];
@@ -985,18 +982,18 @@ class GoogleSheetsService {
       const location = sheetLocation || locationByName.get(`${name}|${dept}`) || locationByName.get(name) || '';
 
       if (type === '결혼') {
-        if (parsed && parsed >= todayStr && parsed <= weddingEndStr) {
+        if (parsed && parsed >= monthStartStr && parsed <= monthEndStr) {
           weddings.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
-        if (dday !== null && dday >= -5 && dday <= 5) {
+        if (parsed && parsed >= monthStartStr && parsed <= monthEndStr) {
           condolences.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
         }
       }
     }
 
-    weddings.sort((a, b) => (a.dday || 0) - (b.dday || 0));
-    condolences.sort((a, b) => (b.dday || 0) - (a.dday || 0));
+    weddings.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    condolences.sort((a, b) => String(a.date).localeCompare(String(b.date)));
 
     return { birthdays, newHires, anniversaries, weddings, condolences, month: curMonth, year: curYear };
   }
