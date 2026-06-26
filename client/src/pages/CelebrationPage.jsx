@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useLayoutEffect } from 'react';
 import api from '../utils/api';
 
 var AVATAR_COLORS = [
@@ -32,9 +32,11 @@ function getLocationBg(location) {
   return AVATAR_COLORS[Math.abs(hash) % AVATAR_COLORS.length];
 }
 
+// 인원 수에 따른 열 수 — 많아지면 2열, 아주 많으면 3열
 function getCols(count) {
   if (count <= 3) return 1;
-  return 2;
+  if (count <= 12) return 2;
+  return 3;
 }
 
 function getSize(count, cols) {
@@ -51,6 +53,40 @@ var SIZES = {
   sm: { avatar: 32, avatarFont: 14, name: 16, rank: 12, dept: 12, rowPad: 6, rowGap: 9, date: 14, badgeFont: 12, badgePad: '3px 9px', rowRadius: 8 },
   xs: { avatar: 26, avatarFont: 12, name: 14, rank: 11, dept: 11, rowPad: 4, rowGap: 7, date: 13, badgeFont: 11, badgePad: '2px 7px', rowRadius: 6 },
 };
+
+// 내용이 컨테이너(카드 본문)보다 크면 비율을 유지한 채 자동 축소 → 인원이 많아도 항상 다 보이게.
+function FitBox({ children }) {
+  var outerRef = useRef(null);
+  var innerRef = useRef(null);
+  var [scale, setScale] = useState(1);
+  useLayoutEffect(function () {
+    function fit() {
+      var outer = outerRef.current, inner = innerRef.current;
+      if (!outer || !inner) return;
+      var oh = outer.clientHeight;
+      var ih = inner.scrollHeight; // transform(scale) 은 layout 높이에 영향 없음 → 자연 높이
+      var s = (ih > 0 && oh > 0) ? Math.min(1, oh / ih) : 1;
+      // 미세 떨림 방지
+      setScale(function (prev) { return Math.abs(prev - s) < 0.005 ? prev : s; });
+    }
+    fit();
+    var ro = (typeof ResizeObserver !== 'undefined') ? new ResizeObserver(fit) : null;
+    if (ro && outerRef.current) ro.observe(outerRef.current);
+    window.addEventListener('resize', fit);
+    return function () { if (ro) ro.disconnect(); window.removeEventListener('resize', fit); };
+  });
+  return (
+    <div ref={outerRef} style={{ flex: 1, minHeight: 0, overflow: 'hidden' }}>
+      <div ref={innerRef} style={{
+        transformOrigin: 'top left',
+        transform: 'scale(' + scale + ')',
+        width: scale < 1 ? (100 / scale) + '%' : '100%',
+      }}>
+        {children}
+      </div>
+    </div>
+  );
+}
 
 function Avatar({ name, location, index, type, s }) {
   var label = (location && String(location).trim()) || (name ? name.charAt(0) : '?');
@@ -140,7 +176,7 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }
 
   var gridBodyStyle = {
     display: 'grid',
-    gridTemplateColumns: cols === 2 ? '1fr 1fr' : '1fr',
+    gridTemplateColumns: cols === 3 ? '1fr 1fr 1fr' : cols === 2 ? '1fr 1fr' : '1fr',
     gap: gap,
   };
 
@@ -167,10 +203,12 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }
           <div style={{ fontSize: subtitleFont, color: '#94a3b8', fontWeight: 500, marginTop: 2 }}>{subtitle}</div>
         </div>
       </div>
-      <div style={{ flex: 1, padding: bodyPad, overflow: 'hidden', display: 'flex', flexDirection: 'column', justifyContent: 'flex-start', paddingTop: 12 }}>
-        <div style={gridBodyStyle}>
-          {items}
-        </div>
+      <div style={{ flex: 1, padding: bodyPad, paddingTop: 12, overflow: 'hidden', display: 'flex', flexDirection: 'column', minHeight: 0 }}>
+        <FitBox>
+          <div style={gridBodyStyle}>
+            {items}
+          </div>
+        </FitBox>
       </div>
     </div>
   );
@@ -334,9 +372,6 @@ export default function CelebrationPage() {
   }
 
   // 카테고리 개수에 따라 레이아웃 결정
-  // 1~3개: 단일 행, N분할 (세로 균등)
-  // 4개: 2+2 (2행, 각 행 2분할)
-  // 5개 이상: 3+2 (첫 행 3, 둘째 행 2; 비율 3fr:2fr)
   var allCards = row1.concat(row2);
   var n = allCards.length;
   var grid;
