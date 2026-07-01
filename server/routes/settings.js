@@ -38,6 +38,9 @@ const ALLOWED_KEYS = new Set([
   // 표시 숨김 (JSON 배열)
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
   'hidden_q1_entities',
+  // 외부 구글시트 연동 (시험대상자 자동 동기화)
+  'external_mj_sheet_id', 'external_mj_tab_name_filter',
+  'external_gs_sheet_id', 'external_gs_tab_name',
 ]);
 // JSON 배열로 저장되는 키 (최대 길이 완화)
 const JSON_ARRAY_KEYS = new Set([
@@ -71,8 +74,9 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
     } else {
       if (typeof v !== 'string' && v !== null && typeof v !== 'number') continue;
       strVal = v == null ? '' : String(v);
-      if (strVal.length > 200) {
-        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 200자 이내여야 합니다.` } });
+      const maxLen = k.startsWith('external_') ? 500 : 200;
+      if (strVal.length > maxLen) {
+        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 ${maxLen}자 이내여야 합니다.` } });
       }
     }
     setSetting(k, strVal, employee_id);

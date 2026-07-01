@@ -3,6 +3,16 @@ const sheetsConfig = require('../config/sheets');
 const getDepartments = require('../config/getDepartments');
 const db = require('../config/database');
 
+// app_settings에서 단순 문자열 값 반환
+function getDbSetting(key, defaultValue = '') {
+  try {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key);
+    return (row && row.value) ? row.value : defaultValue;
+  } catch {
+    return defaultValue;
+  }
+}
+
 // app_settings에서 숨김 대상 Set 반환 (JSON 배열 디코드)
 function getHiddenSet(key) {
   try {
@@ -517,8 +527,9 @@ class GoogleSheetsService {
   }
 
   async _syncMjSubjects(results) {
-    const sheetId = sheetsConfig.EXTERNAL_MJ_SHEET_ID;
+    const sheetId = getDbSetting('external_mj_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
+    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '배정표';
 
     let sheetTabs;
     try {
@@ -537,7 +548,7 @@ class GoogleSheetsService {
     const rowCounts = new Map();
 
     for (const tabName of sheetTabs) {
-      if (!tabName.includes('배정표')) continue;
+      if (!tabName.includes(tabFilter)) continue;
       const yearInfo = this._parseMjTabYear(tabName);
       if (!yearInfo) {
         console.log(`[Sheets] 문정 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);
@@ -604,24 +615,12 @@ class GoogleSheetsService {
   }
 
   async _syncGsSubjects(results) {
-    const sheetId = sheetsConfig.EXTERNAL_GS_SHEET_ID;
+    // 가산 탭이 문정 시트에 통합된 경우 동일 시트 ID를 사용
+    // DB에서 재정의 가능: external_gs_sheet_id, external_gs_tab_name
+    const sheetId = getDbSetting('external_gs_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-
-    // 탭 자동 탐색
-    let tabName = sheetsConfig.EXTERNAL_GS_TAB_NAME;
-    try {
-      const meta = await this.sheets.spreadsheets.get({
-        spreadsheetId: sheetId,
-        fields: 'sheets.properties.title',
-      });
-      const allTabs = meta.data.sheets.map(s => s.properties.title);
-      console.log(`[Sheets] 가산 탭 목록: ${allTabs.join(' | ')}`);
-      const found = allTabs.find(t => t.includes('시험일정'));
-      if (found) tabName = found;
-    } catch (err) {
-      console.warn('[Sheets] 가산 탭 목록 조회 실패:', err.message);
-    }
-    if (!tabName) return;
+    const tabName = getDbSetting('external_gs_tab_name') || '[가산]230501~종료시험누적';
+    console.log(`[Sheets] 가산 시트ID=${sheetId.slice(0, 8)}..., 탭="${tabName}"`);
 
     try {
       const res = await this.sheets.spreadsheets.values.get({
