@@ -142,15 +142,15 @@ export default function DashboardSettingsTab({ settings, onSaved }) {
             <p className="text-xs text-gray-400 mt-1">가산 탭이 문정 시트에 통합된 경우 비워두세요</p>
           </div>
           <div>
-            <label className="block text-sm font-medium text-gray-700 mb-1">가산 탭명</label>
+            <label className="block text-sm font-medium text-gray-700 mb-1">가산 탭 필터 키워드</label>
             <input
               type="text"
               value={form.external_gs_tab_name}
               onChange={(e) => update('external_gs_tab_name', e.target.value)}
-              placeholder="[가산]230501~종료시험누적"
+              placeholder="_가산"
               className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-slate-500 text-sm"
             />
-            <p className="text-xs text-gray-400 mt-1">정확한 탭명을 입력하세요 (기본: [가산]230501~종료시험누적)</p>
+            <p className="text-xs text-gray-400 mt-1">이 키워드가 포함된 탭만 읽습니다 (기본: _가산)</p>
           </div>
         </div>
       </div>

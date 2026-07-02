@@ -529,7 +529,7 @@ class GoogleSheetsService {
   async _syncMjSubjects(results) {
     const sheetId = getDbSetting('external_mj_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '배정표';
+    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '_문정';
 
     let sheetTabs;
     try {
@@ -615,76 +615,89 @@ class GoogleSheetsService {
   }
 
   async _syncGsSubjects(results) {
-    // 가산 탭이 문정 시트에 통합된 경우 동일 시트 ID를 사용
-    // DB에서 재정의 가능: external_gs_sheet_id, external_gs_tab_name
     const sheetId = getDbSetting('external_gs_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-    const tabName = getDbSetting('external_gs_tab_name') || '[가산]230501~종료시험누적';
-    console.log(`[Sheets] 가산 시트ID=${sheetId.slice(0, 8)}..., 탭="${tabName}"`);
+    const tabFilter = getDbSetting('external_gs_tab_name') || '_가산';
 
+    let sheetTabs;
     try {
-      const res = await this.sheets.spreadsheets.values.get({
+      const meta = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
-        range: `'${tabName}'!B:H`,
-        valueRenderOption: 'UNFORMATTED_VALUE',
+        fields: 'sheets.properties.title',
       });
-      const rows = res.data.values || [];
-      const dailyTotals = new Map();
-      const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0;
-
-      // 시트가 날짜순으로 정렬되어 있지 않은 경우(미래 일정이 미리 입력되는 등)를 대비해
-      // 행을 날짜 오름차순으로 정렬한 뒤 처리. 동일 날짜는 원래 순서 유지(stable sort).
-      const sortedRows = [];
-      for (const row of rows) {
-        if (!row || row.length < 1) continue;
-        const dateRaw = row[0];
-        if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
-        const date = parseSheetDate(dateRaw);
-        if (!date) { dateFail++; continue; }
-        sortedRows.push({ date, row });
-      }
-      sortedRows.sort((a, b) => a.date.localeCompare(b.date));
-
-      for (const { date, row } of sortedRows) {
-        // E열(고객사/제품)이 비어있으면 헤더/메모 행으로 간주하여 제외
-        const eCol = String(row[3] || '').trim();
-        if (!eCol) { skipped++; continue; }
-
-        const countRaw = row.length >= 7 ? row[6] : undefined;
-        if (countRaw === undefined || countRaw === null || countRaw === '') {
-          countMissing++;
-          continue;
-        }
-
-        const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
-        if (isNaN(count) || count <= 0) { countMissing++; continue; }
-
-        // C열(row[1])에 '재방문' 또는 '추가방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
-        const cCol = String(row[1] || '');
-        const isRevisit = cCol.includes('재방문') || cCol.includes('추가방문');
-
-        dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-        if (!isRevisit) {
-          rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
-        }
-        parsed++;
-      }
-
-      // 월별 분포 로그
-      const monthCounts = {};
-      for (const [date] of dailyTotals) {
-        const ym = date.slice(0, 7);
-        monthCounts[ym] = (monthCounts[ym] || 0) + 1;
-      }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, E열빈행=${skipped}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
-      console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
-
-      for (const [date, total] of dailyTotals) {
-        results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
-      }
+      sheetTabs = meta.data.sheets.map(s => s.properties.title);
+      console.log(`[Sheets] 가산 대상 탭: ${sheetTabs.filter(t => t.includes(tabFilter)).join(' | ')}`);
     } catch (err) {
-      console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
+      console.warn('[Sheets] 가산 시트 탭 목록 조회 실패:', err.message);
+      return;
+    }
+
+    const dailyTotals = new Map();
+    const rowCounts = new Map();
+
+    for (const tabName of sheetTabs) {
+      if (!tabName.includes(tabFilter)) continue;
+      const yearInfo = this._parseMjTabYear(tabName);
+      if (!yearInfo) {
+        console.log(`[Sheets] 가산 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);
+        continue;
+      }
+
+      try {
+        const res = await this.sheets.spreadsheets.values.get({
+          spreadsheetId: sheetId,
+          range: `'${tabName}'!A:C`,
+          valueRenderOption: 'FORMATTED_VALUE',
+        });
+        const rows = res.data.values || [];
+        let currentYear = yearInfo.startYear;
+        let lastMonth = yearInfo.startMonth;
+        let parsed = 0, skipped = 0;
+
+        for (const row of rows) {
+          if (!row || row.length < 3) continue;
+          const dateCell = String(row[0] || '').trim();
+          const divisionCell = String(row[1] || '').trim();
+          const countCell = String(row[2] || '').trim();
+          if (!dateCell || !countCell) continue;
+          if (dateCell === '날짜' || countCell === '인원' || countCell === '미정') continue;
+
+          const md = dateCell.match(/^(\d{1,2})\/(\d{1,2})/);
+          if (!md) { skipped++; continue; }
+          const month = parseInt(md[1]);
+          const day = parseInt(md[2]);
+          if (month < 1 || month > 12 || day < 1 || day > 31) continue;
+
+          if (yearInfo.isRange && month < lastMonth && lastMonth >= 10 && month <= 3) {
+            currentYear++;
+          }
+          lastMonth = month;
+
+          const count = parseInt(countCell.replace(/[^0-9]/g, ''));
+          if (isNaN(count) || count <= 0) { skipped++; continue; }
+
+          const date = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
+          dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+          if (divisionCell !== '일정변동') {
+            rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+          }
+          parsed++;
+        }
+        console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, ${skipped}행 건너뜀, 연도=${yearInfo.startYear}`);
+      } catch (err) {
+        console.warn(`[Sheets] 가산 외부동기화 실패 (${tabName}):`, err.message);
+      }
+    }
+
+    const monthCounts = {};
+    for (const [date] of dailyTotals) {
+      const ym = date.slice(0, 7);
+      monthCounts[ym] = (monthCounts[ym] || 0) + 1;
+    }
+    console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
+
+    for (const [date, total] of dailyTotals) {
+      results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
     }
   }
 
