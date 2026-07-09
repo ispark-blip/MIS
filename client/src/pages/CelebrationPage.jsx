@@ -358,7 +358,7 @@ export default function CelebrationPage() {
   function renderRow(cards) {
     return cards.map(function (c) {
       return (
-        <div key={c.key} style={{ minHeight: 0 }}>
+        <div key={c.key} style={{ minHeight: 0, minWidth: 0, overflow: 'hidden' }}>
           <Card icon={c.icon} title={c.title} subtitle={c.subtitle} iconBg={c.iconBg} borderColor={c.borderColor} items={c.items} cols={c.cols} scale={c.scale} />
         </div>
       );
@@ -382,13 +382,13 @@ export default function CelebrationPage() {
         </div>
       </div>
 
-      <div style={{ flex: 1, display: 'grid', gridTemplateRows: rowTemplate, gap: 24, minHeight: 0 }}>
+      <div style={{ flex: 1, display: 'grid', gridTemplateRows: rowTemplate, gap: 24, minHeight: 0, minWidth: 0 }}>
         {grid.map(function (g, i) {
           return (
             <div key={i} style={{
               display: 'grid',
               gridTemplateColumns: g.cards.map(function () { return '1fr'; }).join(' '),
-              gap: 24, minHeight: 0,
+              gap: 24, minHeight: 0, minWidth: 0,
             }}>
               {renderRow(g.cards)}
             </div>
