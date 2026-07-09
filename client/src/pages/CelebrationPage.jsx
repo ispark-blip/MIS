@@ -144,20 +144,31 @@ function PersonRow({ person, index, type, s, children }) {
 function CondolenceRow({ person, index, s }) {
   return (
     <div style={{
-      display: 'flex', alignItems: 'center', gap: s.rowGap,
+      display: 'flex', alignItems: 'flex-start', gap: s.rowGap,
       padding: s.rowPad + 'px ' + (s.rowPad + 4) + 'px', borderRadius: s.rowRadius, background: '#f8fafc',
     }}>
       <Avatar name={person.name} location={person.location} index={index} type="condolence" s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        {person.detail && <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.detail}</div>}
-        <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          <span style={{ fontSize: s.name - 2, fontWeight: 700, color: '#1e293b' }}>{person.name}</span>
-          <span style={{ marginLeft: 6 }}>{person.rank}</span>
-          <span style={{ marginLeft: 6 }}>{person.dept}</span>
+        {person.detail && (
+          <div style={{
+            fontSize: s.name, fontWeight: 700, color: '#1e293b', wordBreak: 'keep-all', overflowWrap: 'break-word',
+            display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden',
+          }}>
+            {person.detail}
+          </div>
+        )}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginTop: 2 }}>
+          <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, minWidth: 0, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+            <span style={{ fontSize: s.name - 2, fontWeight: 700, color: '#1e293b' }}>{person.name}</span>
+            <span style={{ marginLeft: 6 }}>{person.rank}</span>
+            <span style={{ marginLeft: 6 }}>{person.dept}</span>
+          </div>
+          {person._dateDisplay && (
+            <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap', flexShrink: 0 }}>
+              {person._dateDisplay}
+            </div>
+          )}
         </div>
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
       </div>
     </div>
   );
