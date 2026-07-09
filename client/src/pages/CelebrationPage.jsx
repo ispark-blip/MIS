@@ -88,18 +88,19 @@ function PersonRow({ person, index, type, s, children }) {
     }}>
       <Avatar name={person.name} location={person.location} index={index} type={type} s={s} />
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {person.name}
-          <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>{person.rank}</span>
+        <div style={{ display: 'flex', alignItems: 'baseline', justifyContent: 'space-between', gap: 6 }}>
+          <div style={{ fontSize: s.name, fontWeight: 700, color: '#1e293b', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', minWidth: 0, flex: 1 }}>
+            {person.name}
+            <span style={{ fontSize: s.rank, color: '#94a3b8', fontWeight: 500, marginLeft: 6 }}>{person.rank}</span>
+          </div>
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
+            {person._badge}
+          </div>
         </div>
         <div style={{ fontSize: s.dept, color: '#64748b', fontWeight: 500, marginTop: 1, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{person.dept}</div>
-
-        {children}
-      </div>
-      <div style={{ textAlign: 'right', flexShrink: 0 }}>
-        {person._dateDisplay && <div style={{ fontSize: s.date, color: '#1e293b', fontWeight: 700, whiteSpace: 'nowrap' }}>{person._dateDisplay}</div>}
-        {person._badge}
         {person._subDate && <div style={{ fontSize: s.dept, color: '#94a3b8', fontWeight: 500, marginTop: 2, whiteSpace: 'nowrap' }}>{person._subDate}</div>}
+        {children}
       </div>
     </div>
   );
