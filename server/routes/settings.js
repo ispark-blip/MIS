@@ -39,7 +39,7 @@ const ALLOWED_KEYS = new Set([
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
   'hidden_q1_entities',
   // 외부 구글시트 연동 (시험대상자 자동 동기화)
-  'external_mj_sheet_id', 'external_mj_tab_name_filter',
+  'external_mj_sheet_id', 'external_mj_tab_name_filter', 'external_mj_tab_exclude',
   'external_gs_sheet_id', 'external_gs_tab_name',
 ]);
 // JSON 배열로 저장되는 키 (최대 길이 완화)

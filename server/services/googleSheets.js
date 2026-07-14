@@ -529,7 +529,10 @@ class GoogleSheetsService {
   async _syncMjSubjects(results) {
     const sheetId = getDbSetting('external_mj_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '_문정';
+    // 문정 탭: '응대배정표' 포함 + '[가산]' 미포함
+    // DB에서 재정의 가능: external_mj_tab_name_filter (포함 키워드), external_mj_tab_exclude (제외 키워드)
+    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '응대배정표';
+    const tabExclude = getDbSetting('external_mj_tab_exclude') || '[가산]';
 
     let sheetTabs;
     try {
@@ -548,7 +551,7 @@ class GoogleSheetsService {
     const rowCounts = new Map();
 
     for (const tabName of sheetTabs) {
-      if (!tabName.includes(tabFilter)) continue;
+      if (!tabName.includes(tabFilter) || tabName.includes(tabExclude)) continue;
       const yearInfo = this._parseMjTabYear(tabName);
       if (!yearInfo) {
         console.log(`[Sheets] 문정 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);
@@ -617,7 +620,7 @@ class GoogleSheetsService {
   async _syncGsSubjects(results) {
     const sheetId = getDbSetting('external_gs_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-    const tabFilter = getDbSetting('external_gs_tab_name') || '_가산';
+    const tabFilter = getDbSetting('external_gs_tab_name') || '[가산]응대배정표';
 
     let sheetTabs;
     try {
