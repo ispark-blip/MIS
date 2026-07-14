@@ -264,12 +264,33 @@ export default function CombinedDashboardPage() {
 
   var {
     selectedLab, selectedYear, selectedMonth, selectedDay, selectedQuarter,
+    setSelectedYear, setSelectedMonth, setSelectedDay, setSelectedQuarter,
     salesData, setSalesData, quarterlyData, setQuarterlyData,
     testCountData, setTestCountData, subjectData, setSubjectData,
   } = useDashboardStore();
 
   var [celebData, setCelebData] = useState(null);
   var [notices, setNotices] = useState([]);
+
+  // 사이니지 날짜 자동 동기화: 1분마다 현재 날짜 확인 후 변경 시 리셋
+  useEffect(function () {
+    var checkDate = function () {
+      var now = new Date();
+      var y = now.getFullYear();
+      var m = now.getMonth() + 1;
+      var d = now.getDate();
+      var q = 'Q' + Math.ceil(m / 3);
+      var store = useDashboardStore.getState();
+      if (store.selectedYear !== y || store.selectedMonth !== m || store.selectedDay !== d) {
+        setSelectedYear(y);
+        setSelectedMonth(m);
+        setSelectedDay(d);
+        setSelectedQuarter(q);
+      }
+    };
+    var id = setInterval(checkDate, 60 * 1000);
+    return function () { clearInterval(id); };
+  }, []);
 
   var pickRefDate = function (arr) {
     if (!Array.isArray(arr) || arr.length === 0) return '';
