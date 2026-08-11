@@ -38,4 +38,13 @@ module.exports = {
   EXTERNAL_GS_SHEET_ID: process.env.EXTERNAL_GS_SHEET_ID || '1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow',
   EXTERNAL_GS_TAB_NAME: process.env.EXTERNAL_GS_TAB_NAME || '____________26년 1월부터 시험일정_________________의 사본',
   EXTERNAL_SYNC_INTERVAL_MS: parseInt(process.env.EXTERNAL_SYNC_INTERVAL) || 30 * 60 * 1000,
+
+  // 가산 과거 데이터 아카이브 (일회성 임포트 → data/gs-archive-import.json)
+  IMPORT_GS_SHEET_ID: process.env.IMPORT_GS_SHEET_ID || '128v9Rg9SypOVf6t30YC8uBJqbbmZsV2KQd_P3GMI4Hk',
+  IMPORT_GS_TAB_NAMES: [
+    '____________26년 1월부터 시험일정__20260606_',
+    '202606부터_______시험일정___________________',
+  ],
+  IMPORT_GS_DATE_START: process.env.IMPORT_GS_DATE_START || '2026-01-01',
+  IMPORT_GS_DATE_END: process.env.IMPORT_GS_DATE_END || '2026-07-31',
 };

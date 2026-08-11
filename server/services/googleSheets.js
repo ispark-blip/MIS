@@ -1,4 +1,5 @@
 const fs = require('fs');
+const path = require('path');
 const sheetsConfig = require('../config/sheets');
 const { labs: LABS_CONFIG } = require('../config/departments');
 const db = require('../config/database');
@@ -48,6 +49,68 @@ function parseSheetDate(v) {
     return `${y}-${m}-${day}`;
   }
   return null;
+}
+
+// 가산 시험일정 시트(B:H) 행 파싱 → 일자별 인원수/시험건수 집계
+// 라이브 동기화와 아카이브 임포트 스크립트가 동일 로직을 공유한다.
+function parseGsRows(rows) {
+  const dailyTotals = new Map();
+  const rowCounts = new Map();
+  const stats = { parsed: 0, dateFail: 0, countMissing: 0, skipped: 0, dateRegression: 0 };
+  let maxDateSeen = '';
+
+  for (const row of rows) {
+    if (!row || row.length < 1) continue;
+    const dateRaw = row[0];
+    if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
+
+    const date = parseSheetDate(dateRaw);
+    if (!date) { stats.dateFail++; continue; }
+
+    // 날짜 진행 방향 추적: 이전 날짜가 다시 나오면 재방문/추가방문으로 간주
+    const isDateRegression = (date < maxDateSeen);
+    if (date > maxDateSeen) maxDateSeen = date;
+    if (isDateRegression) stats.dateRegression++;
+
+    // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
+    const dCol = String(row[2] || '').trim();
+    if (!dCol) { stats.skipped++; continue; }
+
+    const countRaw = row.length >= 7 ? row[6] : undefined;
+    if (countRaw === undefined || countRaw === null || countRaw === '') {
+      stats.countMissing++;
+      continue;
+    }
+
+    const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
+    if (isNaN(count) || count <= 0) { stats.countMissing++; continue; }
+
+    // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
+    const cCol = String(row[1] || '');
+    const isRevisit = cCol.includes('재방문');
+
+    // 인원수는 항상 실제 날짜에 합산 (날짜 역행과 무관)
+    dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+    // 시험건수: 재방문이거나 날짜가 역행하면 제외
+    if (!isRevisit && !isDateRegression) {
+      rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+    }
+    stats.parsed++;
+  }
+
+  return { dailyTotals, rowCounts, stats };
+}
+
+const GS_ARCHIVE_PATH = path.join(__dirname, '..', '..', 'data', 'gs-archive-import.json');
+
+function loadGsArchive() {
+  try {
+    if (!fs.existsSync(GS_ARCHIVE_PATH)) return null;
+    return JSON.parse(fs.readFileSync(GS_ARCHIVE_PATH, 'utf8'));
+  } catch (err) {
+    console.warn('[Sheets] 가산 아카이브 로드 실패:', err.message);
+    return null;
+  }
 }
 
 class GoogleSheetsService {
@@ -493,6 +556,7 @@ class GoogleSheetsService {
     const results = [];
     await this._syncMjSubjects(results);
     await this._syncGsSubjects(results);
+    this._mergeGsArchive(results);
 
     const oldHash = JSON.stringify(this.cache.externalSubjects);
     this.cache.externalSubjects = results;
@@ -616,49 +680,7 @@ class GoogleSheetsService {
         valueRenderOption: 'UNFORMATTED_VALUE',
       });
       const rows = res.data.values || [];
-      const dailyTotals = new Map();
-      const rowCounts = new Map();
-      let parsed = 0, dateFail = 0, countMissing = 0, skipped = 0, dateRegression = 0;
-      let maxDateSeen = '';
-
-      for (const row of rows) {
-        if (!row || row.length < 1) continue;
-        const dateRaw = row[0];
-        if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
-
-        const date = parseSheetDate(dateRaw);
-        if (!date) { dateFail++; continue; }
-
-        // 날짜 진행 방향 추적: 이전 날짜가 다시 나오면 재방문/추가방문으로 간주
-        const isDateRegression = (date < maxDateSeen);
-        if (date > maxDateSeen) maxDateSeen = date;
-        if (isDateRegression) dateRegression++;
-
-        // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
-        const dCol = String(row[2] || '').trim();
-        if (!dCol) { skipped++; continue; }
-
-        const countRaw = row.length >= 7 ? row[6] : undefined;
-        if (countRaw === undefined || countRaw === null || countRaw === '') {
-          countMissing++;
-          continue;
-        }
-
-        const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
-        if (isNaN(count) || count <= 0) { countMissing++; continue; }
-
-        // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
-        const cCol = String(row[1] || '');
-        const isRevisit = cCol.includes('재방문');
-
-        // 인원수는 항상 실제 날짜에 합산 (날짜 역행과 무관)
-        dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-        // 시험건수: 재방문이거나 날짜가 역행하면 제외
-        if (!isRevisit && !isDateRegression) {
-          rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
-        }
-        parsed++;
-      }
+      const { dailyTotals, rowCounts, stats } = parseGsRows(rows);
 
       // 월별 분포 로그
       const monthCounts = {};
@@ -666,7 +688,7 @@ class GoogleSheetsService {
         const ym = date.slice(0, 7);
         monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
-      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, D열빈행=${skipped}, 날짜역행=${dateRegression}, 날짜실패=${dateFail}, 인원수없음=${countMissing}`);
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${stats.parsed}행 파싱, D열빈행=${stats.skipped}, 날짜역행=${stats.dateRegression}, 날짜실패=${stats.dateFail}, 인원수없음=${stats.countMissing}`);
       console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
       for (const [date, total] of dailyTotals) {
@@ -675,6 +697,25 @@ class GoogleSheetsService {
     } catch (err) {
       console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
     }
+  }
+
+  // 사전 임포트된 가산 아카이브 스냅샷 병합
+  // (과거 기간 데이터는 별도 시트에 있어 1회 임포트 후 JSON으로 보관)
+  _mergeGsArchive(results) {
+    const snapshot = loadGsArchive();
+    if (!snapshot || !snapshot.entries || snapshot.entries.length === 0) return;
+
+    // 아카이브가 담당하는 날짜는 라이브 시트 결과를 덮어씀 (중복 합산 방지)
+    const archiveDates = new Set(snapshot.entries.map(e => e.date));
+    for (let i = results.length - 1; i >= 0; i--) {
+      if (results[i].lab === '가산' && archiveDates.has(results[i].date)) {
+        results.splice(i, 1);
+      }
+    }
+    for (const e of snapshot.entries) {
+      results.push({ date: e.date, lab: '가산', subject_count: e.subject_count, test_count: e.test_count });
+    }
+    console.log(`[Sheets] 가산 아카이브 병합: ${snapshot.entries.length}일 (${snapshot.range?.start}~${snapshot.range?.end}, 임포트: ${snapshot.importedAt})`);
   }
 
   _parseMjTabYear(tabName) {
@@ -1023,3 +1064,5 @@ class GoogleSheetsService {
 }
 
 module.exports = GoogleSheetsService;
+module.exports.parseGsRows = parseGsRows;
+module.exports.GS_ARCHIVE_PATH = GS_ARCHIVE_PATH;
