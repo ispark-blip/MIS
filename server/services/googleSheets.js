@@ -120,6 +120,17 @@ function parseTabYear(tabName) {
   return null;
 }
 
+// 한 스프레드시트에 "[문정]응대배정표_26년8월", "[가산]응대배정표_26년8월"이
+// 함께 들어 있어 탭명의 대괄호 태그로 연구소를 구분한다.
+// 태그가 없는 과거 탭은 문정으로 간주한다(기존 동작 유지).
+const ALLOCATION_DEFAULT_LAB = '문정';
+
+function allocationTabLab(tabName) {
+  if (!tabName.includes('배정표')) return null;
+  const m = tabName.match(/\[(문정|가산)\]/);
+  return m ? m[1] : ALLOCATION_DEFAULT_LAB;
+}
+
 // 응대배정표 시트(A:C = 날짜|구분|인원) 행 파싱 → 일자별 인원수/시험건수 집계
 // 날짜 셀은 "8/24(월)" 형식이라 연도는 탭명(yearInfo)에서 가져온다.
 // 문정/가산 공용.
@@ -632,22 +643,18 @@ class GoogleSheetsService {
   }
 
   async _syncMjSubjects(results) {
-    await this._syncAllocationSheet(results, {
-      sheetId: sheetsConfig.EXTERNAL_MJ_SHEET_ID,
-      lab: '문정',
-    });
+    await this._syncAllocationSheet(results, { lab: '문정' });
   }
 
   async _syncGsSubjects(results) {
-    await this._syncAllocationSheet(results, {
-      sheetId: sheetsConfig.EXTERNAL_GS_SHEET_ID,
-      lab: '가산',
-    });
+    await this._syncAllocationSheet(results, { lab: '가산' });
   }
 
   // 응대배정표 시트 동기화 (문정/가산 공용)
-  // 탭명에 '배정표'가 포함된 탭을 모두 읽는다. 연도는 탭명("26년7월")에서 얻는다.
-  async _syncAllocationSheet(results, { sheetId, lab }) {
+  // 두 연구소의 배정표가 같은 스프레드시트에 있고, 탭명의 [문정]/[가산] 태그로 구분된다.
+  // 연도는 탭명("26년8월")에서 얻는다.
+  async _syncAllocationSheet(results, { lab }) {
+    const sheetId = sheetsConfig.EXTERNAL_ALLOCATION_SHEET_ID;
     if (!sheetId) return;
 
     let sheetTabs;
@@ -657,17 +664,18 @@ class GoogleSheetsService {
         fields: 'sheets.properties.title',
       });
       sheetTabs = meta.data.sheets.map(s => s.properties.title);
-      console.log(`[Sheets] ${lab} 탭 목록: ${sheetTabs.join(' | ')}`);
     } catch (err) {
       console.warn(`[Sheets] ${lab} 시트 탭 목록 조회 실패:`, err.message);
       return;
     }
 
+    const myTabs = sheetTabs.filter(t => allocationTabLab(t) === lab);
+    console.log(`[Sheets] ${lab} 배정표 탭 ${myTabs.length}개: ${myTabs.join(' | ') || '(없음)'}`);
+
     const dailyTotals = new Map();
     const rowCounts = new Map();
 
-    for (const tabName of sheetTabs) {
-      if (!tabName.includes('배정표')) continue;
+    for (const tabName of myTabs) {
       const yearInfo = parseTabYear(tabName);
       if (!yearInfo) {
         console.log(`[Sheets] ${lab} 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);

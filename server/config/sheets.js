@@ -34,9 +34,14 @@ module.exports = {
   SHEET_TAB_CELEBRATIONS: process.env.SHEET_TAB_CELEBRATIONS || '경조사',
 
   // 외부 시험대상자 시트 (자동 동기화)
+  // 응대배정표 시트 — 문정/가산 배정표가 한 스프레드시트에 함께 있고
+  // 탭명의 [문정]/[가산] 태그로 구분된다.
+  EXTERNAL_ALLOCATION_SHEET_ID: process.env.EXTERNAL_ALLOCATION_SHEET_ID
+    || process.env.EXTERNAL_MJ_SHEET_ID
+    || '1joJpN5F4H4nNCCkd36JuHnHIHzNyyLXwk_Lt07YZXKE',
   EXTERNAL_MJ_SHEET_ID: process.env.EXTERNAL_MJ_SHEET_ID || '1joJpN5F4H4nNCCkd36JuHnHIHzNyyLXwk_Lt07YZXKE',
-  EXTERNAL_GS_SHEET_ID: process.env.EXTERNAL_GS_SHEET_ID || '1uCXUi_-stAe0XngwRICoElZjvgT44x8tfNIkw-af8Ow',
-  EXTERNAL_GS_TAB_NAME: process.env.EXTERNAL_GS_TAB_NAME || '____________26년 1월부터 시험일정_________________의 사본',
+  // (제거) EXTERNAL_GS_SHEET_ID / EXTERNAL_GS_TAB_NAME
+  // 가산도 응대배정표 시트를 쓰게 되어 별도 시험일정 시트를 더는 읽지 않는다.
   EXTERNAL_SYNC_INTERVAL_MS: parseInt(process.env.EXTERNAL_SYNC_INTERVAL) || 30 * 60 * 1000,
 
   // 가산 과거 데이터 아카이브 (일회성 임포트 → data/gs-archive-import.json)
