@@ -1,17 +1,8 @@
 const fs = require('fs');
+const path = require('path');
 const sheetsConfig = require('../config/sheets');
-const getDepartments = require('../config/getDepartments');
+const { labs: LABS_CONFIG } = require('../config/departments');
 const db = require('../config/database');
-
-// app_settings에서 단순 문자열 값 반환
-function getDbSetting(key, defaultValue = '') {
-  try {
-    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get(key);
-    return (row && row.value) ? row.value : defaultValue;
-  } catch {
-    return defaultValue;
-  }
-}
 
 // app_settings에서 숨김 대상 Set 반환 (JSON 배열 디코드)
 function getHiddenSet(key) {
@@ -60,9 +51,71 @@ function parseSheetDate(v) {
   return null;
 }
 
+// 가산 시험일정 시트(B:H) 행 파싱 → 일자별 인원수/시험건수 집계
+// 라이브 동기화와 아카이브 임포트 스크립트가 동일 로직을 공유한다.
+function parseGsRows(rows) {
+  const dailyTotals = new Map();
+  const rowCounts = new Map();
+  const stats = { parsed: 0, dateFail: 0, countMissing: 0, skipped: 0, dateRegression: 0 };
+  let maxDateSeen = '';
+
+  for (const row of rows) {
+    if (!row || row.length < 1) continue;
+    const dateRaw = row[0];
+    if (dateRaw === undefined || dateRaw === null || dateRaw === '') continue;
+
+    const date = parseSheetDate(dateRaw);
+    if (!date) { stats.dateFail++; continue; }
+
+    // 날짜 진행 방향 추적: 이전 날짜가 다시 나오면 재방문/추가방문으로 간주
+    const isDateRegression = (date < maxDateSeen);
+    if (date > maxDateSeen) maxDateSeen = date;
+    if (isDateRegression) stats.dateRegression++;
+
+    // D열(row[2])이 비어있으면 시험건수 + 인원수 모두 제외
+    const dCol = String(row[2] || '').trim();
+    if (!dCol) { stats.skipped++; continue; }
+
+    const countRaw = row.length >= 7 ? row[6] : undefined;
+    if (countRaw === undefined || countRaw === null || countRaw === '') {
+      stats.countMissing++;
+      continue;
+    }
+
+    const count = typeof countRaw === 'number' ? Math.round(countRaw) : parseInt(String(countRaw).replace(/[^0-9]/g, ''));
+    if (isNaN(count) || count <= 0) { stats.countMissing++; continue; }
+
+    // C열(row[1])에 '재방문' 포함 시 시험건수에서만 제외 (인원수는 포함)
+    const cCol = String(row[1] || '');
+    const isRevisit = cCol.includes('재방문');
+
+    // 인원수는 항상 실제 날짜에 합산 (날짜 역행과 무관)
+    dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
+    // 시험건수: 재방문이거나 날짜가 역행하면 제외
+    if (!isRevisit && !isDateRegression) {
+      rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
+    }
+    stats.parsed++;
+  }
+
+  return { dailyTotals, rowCounts, stats };
+}
+
+const GS_ARCHIVE_PATH = path.join(__dirname, '..', '..', 'data', 'gs-archive-import.json');
+
+function loadGsArchive() {
+  try {
+    if (!fs.existsSync(GS_ARCHIVE_PATH)) return null;
+    return JSON.parse(fs.readFileSync(GS_ARCHIVE_PATH, 'utf8'));
+  } catch (err) {
+    console.warn('[Sheets] 가산 아카이브 로드 실패:', err.message);
+    return null;
+  }
+}
+
 class GoogleSheetsService {
   constructor(eventEmitter) {
-    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [], employees: null, celebrations: null, notices: null };
+    this.cache = { sales: null, testCounts: null, subjects: null, externalSubjects: [], employees: null, celebrations: null };
     this._lastExternalSync = 0;
     this.eventEmitter = eventEmitter;
     this.sheets = null;
@@ -116,21 +169,16 @@ class GoogleSheetsService {
   // 시트 컬럼: 연도 | 월 | 부서명 | 연구소 | 월목표 | 월실적
   transformSalesData() {
     return (this.cache.sales || [])
-      .filter(row => row && row[0] && row[1] && row[3])
-      .map(row => {
-        const lab = String(row[3] || '').trim();
-        const rawName = String(row[2] || '').trim();
-        return {
-          year: toNum(row[0]),
-          month: toNum(row[1]),
-          // 부서명이 비어 있으면 lab명을 부서명으로 사용 (별도법인 등 부서 미정 케이스)
-          name: rawName || lab,
-          lab,
-          target_monthly: toNum(row[4]),
-          actual_monthly: toNum(row[5]),
-        };
-      })
-      .filter(r => r.year > 0 && r.month >= 1 && r.month <= 12 && r.lab);
+      .filter(row => row && row[0] && row[1] && row[2] && row[3])
+      .map(row => ({
+        year: toNum(row[0]),
+        month: toNum(row[1]),
+        name: String(row[2]).trim(),
+        lab: String(row[3]).trim(),
+        target_monthly: toNum(row[4]),
+        actual_monthly: toNum(row[5]),
+      }))
+      .filter(r => r.year > 0 && r.month >= 1 && r.month <= 12);
   }
 
   getCachedSalesOverview(lab, year) {
@@ -167,14 +215,6 @@ class GoogleSheetsService {
         target: d.target,
         ratio: totalActual > 0 ? Math.round((d.actual / totalActual) * 1000) / 10 : 0,
         achievementRate: d.target > 0 ? Math.round((d.actual / d.target) * 1000) / 10 : 0,
-      })),
-      // 표시 설정과 무관한 전체 부서 목록 (한피연/얼트루 합계 재계산용).
-      // 차트 슬라이스/레전드에는 사용하지 않고 totals 산출에만 사용.
-      allDepartments: departments.map(d => ({
-        name: d.name,
-        lab: d.lab,
-        actual: d.actual,
-        target: d.target,
       })),
     };
   }
@@ -453,7 +493,6 @@ class GoogleSheetsService {
       ...externalRows.map(r => ({ date: r.date, lab: r.lab, department: '외부동기화', count: r.subject_count })),
     ];
 
-    const LABS_CONFIG = getDepartments().labs;
     if (targetMonth) {
       for (const lab of LABS_CONFIG) {
         const intCount = internalRows.filter(r => r.lab === lab).length;
@@ -517,6 +556,7 @@ class GoogleSheetsService {
     const results = [];
     await this._syncMjSubjects(results);
     await this._syncGsSubjects(results);
+    this._mergeGsArchive(results);
 
     const oldHash = JSON.stringify(this.cache.externalSubjects);
     this.cache.externalSubjects = results;
@@ -527,12 +567,8 @@ class GoogleSheetsService {
   }
 
   async _syncMjSubjects(results) {
-    const sheetId = getDbSetting('external_mj_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
+    const sheetId = sheetsConfig.EXTERNAL_MJ_SHEET_ID;
     if (!sheetId) return;
-    // 문정 탭: '응대배정표' 포함 + '[가산]' 미포함
-    // DB에서 재정의 가능: external_mj_tab_name_filter (포함 키워드), external_mj_tab_exclude (제외 키워드)
-    const tabFilter = getDbSetting('external_mj_tab_name_filter') || '응대배정표';
-    const tabExclude = getDbSetting('external_mj_tab_exclude') || '[가산]';
 
     let sheetTabs;
     try {
@@ -551,7 +587,7 @@ class GoogleSheetsService {
     const rowCounts = new Map();
 
     for (const tabName of sheetTabs) {
-      if (!tabName.includes(tabFilter) || tabName.includes(tabExclude)) continue;
+      if (!tabName.includes('배정표')) continue;
       const yearInfo = this._parseMjTabYear(tabName);
       if (!yearInfo) {
         console.log(`[Sheets] 문정 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);
@@ -618,90 +654,68 @@ class GoogleSheetsService {
   }
 
   async _syncGsSubjects(results) {
-    const sheetId = getDbSetting('external_gs_sheet_id') || sheetsConfig.EXTERNAL_MJ_SHEET_ID;
+    const sheetId = sheetsConfig.EXTERNAL_GS_SHEET_ID;
     if (!sheetId) return;
-    const tabFilter = getDbSetting('external_gs_tab_name') || '[가산]응대배정표';
 
-    let sheetTabs;
+    // 탭 자동 탐색
+    let tabName = sheetsConfig.EXTERNAL_GS_TAB_NAME;
     try {
       const meta = await this.sheets.spreadsheets.get({
         spreadsheetId: sheetId,
         fields: 'sheets.properties.title',
       });
-      sheetTabs = meta.data.sheets.map(s => s.properties.title);
-      console.log(`[Sheets] 가산 대상 탭: ${sheetTabs.filter(t => t.includes(tabFilter)).join(' | ')}`);
+      const allTabs = meta.data.sheets.map(s => s.properties.title);
+      console.log(`[Sheets] 가산 탭 목록: ${allTabs.join(' | ')}`);
+      const found = allTabs.find(t => t.includes('시험일정'));
+      if (found) tabName = found;
     } catch (err) {
-      console.warn('[Sheets] 가산 시트 탭 목록 조회 실패:', err.message);
-      return;
+      console.warn('[Sheets] 가산 탭 목록 조회 실패:', err.message);
     }
+    if (!tabName) return;
 
-    const dailyTotals = new Map();
-    const rowCounts = new Map();
+    try {
+      const res = await this.sheets.spreadsheets.values.get({
+        spreadsheetId: sheetId,
+        range: `'${tabName}'!B:H`,
+        valueRenderOption: 'UNFORMATTED_VALUE',
+      });
+      const rows = res.data.values || [];
+      const { dailyTotals, rowCounts, stats } = parseGsRows(rows);
 
-    for (const tabName of sheetTabs) {
-      if (!tabName.includes(tabFilter)) continue;
-      const yearInfo = this._parseMjTabYear(tabName);
-      if (!yearInfo) {
-        console.log(`[Sheets] 가산 탭 건너뜀 (연도 파싱 불가): "${tabName}"`);
-        continue;
+      // 월별 분포 로그
+      const monthCounts = {};
+      for (const [date] of dailyTotals) {
+        const ym = date.slice(0, 7);
+        monthCounts[ym] = (monthCounts[ym] || 0) + 1;
       }
+      console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${stats.parsed}행 파싱, D열빈행=${stats.skipped}, 날짜역행=${stats.dateRegression}, 날짜실패=${stats.dateFail}, 인원수없음=${stats.countMissing}`);
+      console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
 
-      try {
-        const res = await this.sheets.spreadsheets.values.get({
-          spreadsheetId: sheetId,
-          range: `'${tabName}'!A:C`,
-          valueRenderOption: 'FORMATTED_VALUE',
-        });
-        const rows = res.data.values || [];
-        let currentYear = yearInfo.startYear;
-        let lastMonth = yearInfo.startMonth;
-        let parsed = 0, skipped = 0;
+      for (const [date, total] of dailyTotals) {
+        results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
+      }
+    } catch (err) {
+      console.warn('[Sheets] 가산 외부동기화 실패:', err.message);
+    }
+  }
 
-        for (const row of rows) {
-          if (!row || row.length < 3) continue;
-          const dateCell = String(row[0] || '').trim();
-          const divisionCell = String(row[1] || '').trim();
-          const countCell = String(row[2] || '').trim();
-          if (!dateCell || !countCell) continue;
-          if (dateCell === '날짜' || countCell === '인원' || countCell === '미정') continue;
+  // 사전 임포트된 가산 아카이브 스냅샷 병합
+  // (과거 기간 데이터는 별도 시트에 있어 1회 임포트 후 JSON으로 보관)
+  _mergeGsArchive(results) {
+    const snapshot = loadGsArchive();
+    if (!snapshot || !snapshot.entries || snapshot.entries.length === 0) return;
 
-          const md = dateCell.match(/^(\d{1,2})\/(\d{1,2})/);
-          if (!md) { skipped++; continue; }
-          const month = parseInt(md[1]);
-          const day = parseInt(md[2]);
-          if (month < 1 || month > 12 || day < 1 || day > 31) continue;
-
-          if (yearInfo.isRange && month < lastMonth && lastMonth >= 10 && month <= 3) {
-            currentYear++;
-          }
-          lastMonth = month;
-
-          const count = parseInt(countCell.replace(/[^0-9]/g, ''));
-          if (isNaN(count) || count <= 0) { skipped++; continue; }
-
-          const date = `${currentYear}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`;
-          dailyTotals.set(date, (dailyTotals.get(date) || 0) + count);
-          if (divisionCell !== '일정변동') {
-            rowCounts.set(date, (rowCounts.get(date) || 0) + 1);
-          }
-          parsed++;
-        }
-        console.log(`[Sheets] 가산 "${tabName}": ${rows.length}행 읽음, ${parsed}행 파싱, ${skipped}행 건너뜀, 연도=${yearInfo.startYear}`);
-      } catch (err) {
-        console.warn(`[Sheets] 가산 외부동기화 실패 (${tabName}):`, err.message);
+    // 아카이브가 담당하는 날짜는 라이브 시트 결과를 덮어씀 (중복 합산 방지)
+    const archiveDates = new Set(snapshot.entries.map(e => e.date));
+    for (let i = results.length - 1; i >= 0; i--) {
+      if (results[i].lab === '가산' && archiveDates.has(results[i].date)) {
+        results.splice(i, 1);
       }
     }
-
-    const monthCounts = {};
-    for (const [date] of dailyTotals) {
-      const ym = date.slice(0, 7);
-      monthCounts[ym] = (monthCounts[ym] || 0) + 1;
+    for (const e of snapshot.entries) {
+      results.push({ date: e.date, lab: '가산', subject_count: e.subject_count, test_count: e.test_count });
     }
-    console.log(`[Sheets] 가산 월별 분포:`, JSON.stringify(monthCounts));
-
-    for (const [date, total] of dailyTotals) {
-      results.push({ date, lab: '가산', subject_count: total, test_count: rowCounts.get(date) || 0 });
-    }
+    console.log(`[Sheets] 가산 아카이브 병합: ${snapshot.entries.length}일 (${snapshot.range?.start}~${snapshot.range?.end}, 임포트: ${snapshot.importedAt})`);
   }
 
   _parseMjTabYear(tabName) {
@@ -829,7 +843,7 @@ class GoogleSheetsService {
     try {
       const res = await this.sheets.spreadsheets.values.get({
         spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
-        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:H`,
+        range: `'${sheetsConfig.SHEET_TAB_CELEBRATIONS}'!A2:G`,
         valueRenderOption: 'FORMATTED_VALUE',
       });
       return res.data.values || [];
@@ -841,45 +855,6 @@ class GoogleSheetsService {
       }
       return null;
     }
-  }
-
-  async fetchNoticesData() {
-    if (!this.initialized || !sheetsConfig.SPREADSHEET_ID_EMPLOYEES) return null;
-    try {
-      const res = await this.sheets.spreadsheets.values.get({
-        spreadsheetId: sheetsConfig.SPREADSHEET_ID_EMPLOYEES,
-        range: `'${sheetsConfig.SHEET_TAB_NOTICES}'!A2:F`,
-        valueRenderOption: 'FORMATTED_VALUE',
-      });
-      return res.data.values || [];
-    } catch (err) {
-      if (err.message && err.message.includes('Unable to parse range')) {
-        console.log(`[Sheets] 공지사항 탭 없음 ("${sheetsConfig.SHEET_TAB_NOTICES}"). 공지 없이 진행.`);
-      } else {
-        console.warn('[Sheets] 공지사항 조회 실패:', err.message);
-      }
-      return null;
-    }
-  }
-
-  getCachedNotices() {
-    const rows = this.cache.notices || [];
-    const list = [];
-    for (const row of rows) {
-      if (!row || !row[0]) continue;
-      const category = String(row[0] || '').trim();
-      const title = String(row[1] || '').trim();
-      const content = String(row[2] || '').trim();
-      const dateRaw = String(row[3] || '').trim();
-      const author = String(row[4] || '').trim();
-      const display = String(row[5] || 'Y').trim().toUpperCase();
-      if (display !== 'Y') continue;
-      if (!title) continue;
-      const parsed = this._parseEmployeeDate(dateRaw);
-      list.push({ category, title, content, date: parsed || dateRaw, author });
-    }
-    list.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return list;
   }
 
   _parseEmployeeBirthday(raw) {
@@ -928,7 +903,6 @@ class GoogleSheetsService {
     const birthdays = [];
     const anniversaries = [];
     const newHires = [];
-    const locationByName = new Map();
 
     for (const row of employees) {
       if (!row || !row[0]) continue;
@@ -942,11 +916,8 @@ class GoogleSheetsService {
       const contract = String(row[16] || '').trim().toUpperCase();
       if (contract === 'Y') continue;
 
-      if (location) locationByName.set(`${name}|${dept}`, location);
-      if (location && !locationByName.has(name)) locationByName.set(name, location);
-
       const bday = this._parseEmployeeBirthday(row[5]);
-      if (bday && bday.month === curMonth) {
+      if (bday && bday.month === curMonth && bday.day >= curDay) {
         const dday = bday.day - curDay;
         birthdays.push({ name, rank, dept, location, month: bday.month, day: bday.day, dday });
       }
@@ -954,7 +925,7 @@ class GoogleSheetsService {
       const hireDate = this._parseEmployeeDate(row[6]);
       if (hireDate) {
         const [hy, hm, hd] = hireDate.split('-').map(Number);
-        if (hm === curMonth && hy < curYear) {
+        if (hm === curMonth && hy < curYear && hd >= curDay) {
           const years = curYear - hy;
           if (years === 1 || years === 3 || years === 5 || years === 10 || years === 20) {
             const dday = hd - curDay;
@@ -971,9 +942,12 @@ class GoogleSheetsService {
     anniversaries.sort((a, b) => a.day - b.day);
     newHires.sort((a, b) => a.day - b.day);
 
+    const nextMonth = curMonth === 12 ? 1 : curMonth + 1;
+    const nextMonthYear = curMonth === 12 ? curYear + 1 : curYear;
+    const nextMonthLastDay = new Date(nextMonthYear, nextMonth, 0).getDate();
+    const weddingEndStr = `${nextMonthYear}-${String(nextMonth).padStart(2, '0')}-${String(nextMonthLastDay).padStart(2, '0')}`;
     const curMonthLastDay = new Date(curYear, curMonth, 0).getDate();
-    const monthStartStr = `${curYear}-${String(curMonth).padStart(2, '0')}-01`;
-    const monthEndStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curMonthLastDay).padStart(2, '0')}`;
+    const condolenceEndStr = `${curYear}-${String(curMonth).padStart(2, '0')}-${String(curMonthLastDay).padStart(2, '0')}`;
 
     const weddings = [];
     const condolences = [];
@@ -984,31 +958,28 @@ class GoogleSheetsService {
       const name = String(row[1] || '').trim();
       const dept = String(row[2] || '').trim();
       const rank = String(row[3] || '').trim();
-      const sheetLocation = String(row[4] || '').trim();
-      const dateStr = String(row[5] || '').trim();
-      const detail = String(row[6] || '').trim();
-      const display = String(row[7] || 'Y').trim().toUpperCase();
+      const dateStr = String(row[4] || '').trim();
+      const detail = String(row[5] || '').trim();
+      const display = String(row[6] || 'Y').trim().toUpperCase();
 
       if (display !== 'Y') continue;
 
       const parsed = this._parseEmployeeDate(dateStr);
       const dday = parsed ? Math.round((Date.parse(parsed) - Date.parse(todayStr)) / 86400000) : null;
 
-      const location = sheetLocation || locationByName.get(`${name}|${dept}`) || locationByName.get(name) || '';
-
       if (type === '결혼') {
-        if (parsed && parsed >= monthStartStr && parsed <= monthEndStr) {
-          weddings.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
+        if (parsed && parsed >= todayStr && parsed <= weddingEndStr) {
+          weddings.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       } else if (type === '부고') {
-        if (parsed && parsed >= monthStartStr && parsed <= monthEndStr) {
-          condolences.push({ name, rank, dept, location, date: parsed || dateStr, detail, dday });
+        if (dday !== null && dday >= -5 && dday <= 5) {
+          condolences.push({ name, rank, dept, date: parsed || dateStr, detail, dday });
         }
       }
     }
 
-    weddings.sort((a, b) => String(a.date).localeCompare(String(b.date)));
-    condolences.sort((a, b) => String(a.date).localeCompare(String(b.date)));
+    weddings.sort((a, b) => (a.dday || 0) - (b.dday || 0));
+    condolences.sort((a, b) => (b.dday || 0) - (a.dday || 0));
 
     return { birthdays, newHires, anniversaries, weddings, condolences, month: curMonth, year: curYear };
   }
@@ -1017,13 +988,12 @@ class GoogleSheetsService {
   async fetchAndUpdate() {
     if (!this.initialized) return;
     try {
-      const [salesData, testCountsData, subjectsData, employeeData, celebrationsData, noticesData] = await Promise.all([
+      const [salesData, testCountsData, subjectsData, employeeData, celebrationsData] = await Promise.all([
         this.fetchSalesData(),
         this.fetchTestCountsData(),
         this.fetchSubjectsData(),
         this.fetchEmployeeData(),
         this.fetchCelebrationsData(),
-        this.fetchNoticesData(),
       ]);
 
       let changed = false;
@@ -1078,16 +1048,6 @@ class GoogleSheetsService {
         }
       }
 
-      if (noticesData !== undefined) {
-        const newHash = JSON.stringify(noticesData);
-        const oldHash = JSON.stringify(this.cache.notices);
-        if (newHash !== oldHash) {
-          this.cache.notices = noticesData;
-          changed = true;
-          if (this.eventEmitter) this.eventEmitter('notices-update', { source: 'sheets' });
-        }
-      }
-
       if (changed) console.log('[Sheets] 캐시 갱신');
 
       await this.syncExternalSubjects();
@@ -1104,3 +1064,5 @@ class GoogleSheetsService {
 }
 
 module.exports = GoogleSheetsService;
+module.exports.parseGsRows = parseGsRows;
+module.exports.GS_ARCHIVE_PATH = GS_ARCHIVE_PATH;
