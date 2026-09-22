@@ -41,7 +41,8 @@ export default function SalesDonut({ data, layout }) {
   ];
 
   const stackData = departments.map((d) => ({
-    name: d.name,
+    name: d.displayName || d.name,
+    colorKey: d.name,
     value: d.actual,
     label: formatCurrency(d.actual),
   }));
@@ -82,7 +83,7 @@ export default function SalesDonut({ data, layout }) {
               <YAxis hide />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[4, 4, 0, 0]}>
-                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
+                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.colorKey || d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="top"
@@ -132,7 +133,7 @@ export default function SalesDonut({ data, layout }) {
               <YAxis type="category" dataKey="name" width={80} tick={{ fontSize: 15, fontWeight: 600 }} />
               <Tooltip formatter={(v) => formatCurrency(v)} />
               <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
+                {stackData.map((d, i) => <Cell key={i} fill={getDeptColor(d.colorKey || d.name, i)} />)}
                 <LabelList
                   dataKey="label"
                   position="right"

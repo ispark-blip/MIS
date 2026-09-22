@@ -62,7 +62,7 @@ function DeptLegend({ depts, totalActual }) {
         return (
           <div key={d.name} className="flex items-center gap-1.5 min-w-0">
             <span className="w-2.5 h-2.5 rounded-sm shrink-0" style={{ background: c }}></span>
-            <span className="truncate text-gray-700 font-medium">{d.name}</span>
+            <span className="truncate text-gray-700 font-medium">{d.displayName || d.name}</span>
             <span className="ml-auto text-gray-800 font-semibold whitespace-nowrap">{formatCurrency(d.actual)}</span>
             <span className="text-gray-400 text-[10px] sm:text-xs whitespace-nowrap">{pct}%</span>
           </div>
@@ -76,7 +76,7 @@ function KdriPanel({ depts, totalTarget, totalActual, achievementRate }) {
   const slices = [
     ...depts
       .filter((d) => d.actual > 0)
-      .map((d, i) => ({ name: d.name, value: d.actual, fill: getDeptColor(d.name, i) })),
+      .map((d, i) => ({ name: d.displayName || d.name, value: d.actual, fill: getDeptColor(d.name, i) })),
   ];
   const remaining = Math.max(totalTarget - totalActual, 0);
   if (remaining > 0) slices.push({ name: '잔여', value: remaining, fill: '#e2e8f0' });
