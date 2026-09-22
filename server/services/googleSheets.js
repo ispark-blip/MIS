@@ -16,6 +16,25 @@ function getHiddenSet(key) {
   }
 }
 
+// 부서 표시 이름(별칭) 맵 — app_settings.department_aliases = { "원본부서명": "표시이름" }
+// 원본 부서명은 집계·숨김·데이터 매칭의 키로 그대로 쓰고, 화면 표기만 별칭으로 바꾼다.
+function getAliasMap() {
+  try {
+    const row = db.prepare('SELECT value FROM app_settings WHERE key = ?').get('department_aliases');
+    if (!row || !row.value) return {};
+    const obj = JSON.parse(row.value);
+    return obj && typeof obj === 'object' && !Array.isArray(obj) ? obj : {};
+  } catch {
+    return {};
+  }
+}
+
+// 원본 부서명 → 표시 이름 (별칭 없으면 원본 그대로)
+function displayNameOf(aliases, name) {
+  const v = aliases[name];
+  return typeof v === 'string' && v.trim() ? v.trim() : name;
+}
+
 // 쉼표 포함 문자열/숫자를 안전하게 숫자로 변환
 function toNum(v) {
   if (v === null || v === undefined || v === '') return 0;
@@ -279,6 +298,7 @@ class GoogleSheetsService {
     const totalActual = departments.reduce((s, d) => s + d.actual, 0);
     const hiddenDepts = getHiddenSet('hidden_sales_departments');
     const visibleDepts = departments.filter(d => !hiddenDepts.has(d.name));
+    const aliases = getAliasMap();
 
     return {
       totalTarget,
@@ -286,6 +306,7 @@ class GoogleSheetsService {
       achievementRate: totalTarget > 0 ? Math.round((totalActual / totalTarget) * 1000) / 10 : 0,
       departments: visibleDepts.map(d => ({
         name: d.name,
+        displayName: displayNameOf(aliases, d.name),
         lab: d.lab,
         actual: d.actual,
         target: d.target,
@@ -316,11 +337,13 @@ class GoogleSheetsService {
 
     const hiddenDepts = getHiddenSet('hidden_sales_departments');
     const departments = Array.from(deptMap.values()).filter(d => !hiddenDepts.has(d.name));
+    const aliases = getAliasMap();
     return {
       quarter,
       year,
       departments: departments.map(d => ({
         name: d.name,
+        displayName: displayNameOf(aliases, d.name),
         lab: d.lab,
         target: d.target,
         actual: d.actual,
@@ -463,6 +486,7 @@ class GoogleSheetsService {
 
     const hiddenDepts = getHiddenSet('hidden_test_count_departments');
     const visibleDepts = salesDepts.filter(d => !hiddenDepts.has(d.name));
+    const tcAliases = getAliasMap();
 
     // --- 부서별 일별 건수 병합 ---
     const result = visibleDepts.map(({ name: department, lab }) => {
@@ -507,7 +531,7 @@ class GoogleSheetsService {
         .sort((a, b) => a[0].localeCompare(b[0]))
         .map(([date, total]) => ({ date, total }));
 
-      return { department, lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
+      return { department, displayDepartment: displayNameOf(tcAliases, department), lab, today: todayCount, todayDate, monthlyTotal, annualTotal, recentDays };
     });
 
     if (targetMonth) {

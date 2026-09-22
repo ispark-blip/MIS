@@ -30,7 +30,8 @@ export default function QuarterlyBar({ data, horizontal }) {
   }
 
   const chartData = data.departments.map((d) => ({
-    name: d.name,
+    name: d.displayName || d.name,
+    colorKey: d.name,
     목표: d.target,
     실적: d.actual,
     rate: d.achievementRate,
@@ -72,7 +73,7 @@ export default function QuarterlyBar({ data, horizontal }) {
                 />
               </Bar>
               <Bar dataKey="실적" radius={[0, 2, 2, 0]}>
-                {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
+                {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.colorKey || d.name, i)} />)}
                 <LabelList
                   dataKey="actualLabel"
                   position="right"
@@ -95,7 +96,7 @@ export default function QuarterlyBar({ data, horizontal }) {
                 />
               </Bar>
               <Bar dataKey="실적" radius={[2, 2, 0, 0]}>
-                {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.name, i)} />)}
+                {chartData.map((d, i) => <Cell key={i} fill={getDeptColor(d.colorKey || d.name, i)} />)}
                 <LabelList
                   dataKey="actualLabel"
                   position="top"

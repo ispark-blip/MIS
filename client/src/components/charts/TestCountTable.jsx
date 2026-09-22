@@ -21,7 +21,7 @@ export default function TestCountTable({ data, hideChart }) {
           <div key={`${d.lab}-${d.department}`} className="border rounded-lg p-2 sm:p-3 min-h-0 overflow-hidden flex flex-col justify-start" style={{ borderColor: color + '40', background: color + '08' }}>
             <div className="flex items-center justify-between gap-3">
               <div className="min-w-0 flex-1">
-                <h4 className="font-bold text-base sm:text-lg lg:text-xl truncate leading-tight" style={{ color }}>{d.department}</h4>
+                <h4 className="font-bold text-base sm:text-lg lg:text-xl truncate leading-tight" style={{ color }}>{d.displayDepartment || d.department}</h4>
                 <div className="text-[10px] sm:text-xs text-gray-400 leading-tight">{d.lab}연구소</div>
 
                 <div className="mt-1.5 flex items-end gap-2 sm:gap-3">

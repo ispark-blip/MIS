@@ -38,6 +38,8 @@ const ALLOWED_KEYS = new Set([
   // 표시 숨김 (JSON 배열)
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
   'hidden_q1_entities',
+  // 부서 표시 이름(별칭) — JSON 객체 { 원본부서명: 표시이름 }
+  'department_aliases',
   // 외부 구글시트 연동 (시험대상자 자동 동기화)
   'external_mj_sheet_id', 'external_mj_tab_name_filter', 'external_mj_tab_exclude',
   'external_gs_sheet_id', 'external_gs_tab_name',
@@ -47,6 +49,8 @@ const JSON_ARRAY_KEYS = new Set([
   'hidden_sales_departments', 'hidden_summary_labs', 'hidden_test_count_departments',
   'hidden_q1_entities',
 ]);
+// JSON 객체로 저장되는 키 (부서명 별칭 맵)
+const JSON_OBJECT_KEYS = new Set(['department_aliases']);
 
 // GET /api/settings - 공개 (브랜딩 표시용)
 router.get('/', (req, res) => {
@@ -63,7 +67,25 @@ router.put('/', requireAuth, requireRole('admin'), (req, res) => {
     if (!ALLOWED_KEYS.has(k)) continue;
 
     let strVal;
-    if (JSON_ARRAY_KEYS.has(k)) {
+    if (JSON_OBJECT_KEYS.has(k)) {
+      // { 원본명: 표시명 } 객체만 허용. 빈 값·원본과 동일한 값은 저장하지 않음(별칭 해제).
+      if (!v || typeof v !== 'object' || Array.isArray(v)) continue;
+      const sanitized = {};
+      for (const [origRaw, dispRaw] of Object.entries(v)) {
+        if (typeof origRaw !== 'string' || typeof dispRaw !== 'string') continue;
+        const orig = origRaw.trim();
+        const disp = dispRaw.trim();
+        if (!orig || !disp || orig === disp) continue;
+        if (orig.length > 100 || disp.length > 100) {
+          return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: '부서명은 100자 이내여야 합니다.' } });
+        }
+        sanitized[orig] = disp;
+      }
+      strVal = JSON.stringify(sanitized);
+      if (strVal.length > 4000) {
+        return res.status(400).json({ success: false, error: { code: 'VALIDATION_ERROR', message: `${k}는 4000자 이내여야 합니다.` } });
+      }
+    } else if (JSON_ARRAY_KEYS.has(k)) {
       // 배열만 허용, JSON 문자열로 저장
       if (!Array.isArray(v)) continue;
       const sanitized = v.filter(x => typeof x === 'string').map(x => x.trim()).filter(Boolean);
