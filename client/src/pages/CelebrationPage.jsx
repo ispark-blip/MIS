@@ -186,9 +186,11 @@ function Card({ icon, title, subtitle, borderColor, iconBg, items, cols, scale }
   var rows = Math.ceil(items.length / cols);
   var gap = rows > 6 ? 2 : rows > 4 ? 3 : rows > 2 ? 5 : 8;
 
+  // minmax(0, 1fr): 그냥 1fr 이면 트랙 최소폭이 min-content 라서
+  // nowrap 텍스트를 가진 행이 카드 밖으로 밀려나 잘린다.
   var gridBodyStyle = {
     display: 'grid',
-    gridTemplateColumns: cols === 3 ? '1fr 1fr 1fr' : cols === 2 ? '1fr 1fr' : '1fr',
+    gridTemplateColumns: 'repeat(' + cols + ', minmax(0, 1fr))',
     gap: gap,
   };
 
@@ -434,7 +436,11 @@ export default function CelebrationPage() {
           return (
             <div key={i} style={{
               display: 'grid',
-              gridTemplateColumns: g.cards.map(function () { return '1fr'; }).join(' '),
+              // 카드 폭을 내부 열 수에 비례 배분 → 인원이 많은 카드가 넓어지고
+              // 사람 한 명이 차지하는 폭이 카드 간에 비슷해진다.
+              gridTemplateColumns: g.cards.map(function (c) {
+                return 'minmax(0, ' + (c.cols || 1) + 'fr)';
+              }).join(' '),
               gap: 24, minHeight: 0, minWidth: 0,
             }}>
               {renderRow(g.cards)}
